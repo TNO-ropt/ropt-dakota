@@ -1,0 +1,87 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ropt-dakota"
+description = "A Dakota optimizer plugin for ropt"
+readme = "README-PyPI.md"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Natural Language :: English",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering",
+]
+requires-python = ">=3.8"
+dynamic = ["version"]
+dependencies = ["numpy", "carolina"]
+
+[project.optional-dependencies]
+test = ["ruff", "mypy", "pytest"]
+
+[project.entry-points."ropt.plugins.optimizer"]
+dakota = "ropt_dakota.dakota:DakotaOptimizer"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["ropt_dakota"]
+
+[tool.setuptools.package-data]
+ropt_dakota = ["py.typed"]
+
+[tool.setuptools.dynamic]
+version = { attr = "ropt_dakota.version.__version__" }
+
+[tool.setuptools_scm]
+write_to = "src/ropt_dakota/version.py"
+
+[tool.pytest.ini_options]
+filterwarnings = ["error"]
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "ANN101",
+    "ANN102",
+    "AIR",
+    "COM812",
+    "COM819",
+    "D206",
+    "E501",
+    "DJ",
+    "FA",
+    "ISC001",
+    "PGH",
+    "UP",
+    "ANN101",
+    "ANN102",
+    "FIX002",
+    "S101",
+    "TD002",
+    "TD003",
+    "Q",
+    "UP",
+    "W191",
+]
+
+[tool.ruff.format]
+exclude = ["src/ropt_dakota/version.py", "build"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["D", "ANN401", "PLR2004"]
+
+[tool.mypy]
+strict = true
+
+[[tool.mypy.overrides]]
+module = ["dakota", "ropt_dakota.version"]
+ignore_missing_imports = true
