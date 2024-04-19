@@ -42,7 +42,10 @@ version = { attr = "ropt_dakota.version.__version__" }
 write_to = "src/ropt_dakota/version.py"
 
 [tool.pytest.ini_options]
-filterwarnings = ["error"]
+filterwarnings = [
+    "error",
+    'ignore:.*Pydantic will allow any object with no validation.*:UserWarning',          # 3.8
+]
 
 [tool.ruff.lint]
 select = ["ALL"]

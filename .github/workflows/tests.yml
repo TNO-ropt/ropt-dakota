@@ -1,7 +1,4 @@
-name: Run tests for Dakota
-
-env:
-  DAKOTA_VERSION: 6.19.0
+name: Run tests
 
 on:
   push:
@@ -13,100 +10,24 @@ on:
     - cron:  '43 1 * * 1'
 
 jobs:
-  build-dakota:
-    name: Build Dakota
-    runs-on: ubuntu-22.04
-    strategy:
-      matrix:
-        python-version: ["3.10"]
-    steps:
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
-    - name: Cache Dakota
-      id: cache-dakota
-      uses: actions/cache@v3
-      with:
-        path: dakota-${{ env.DAKOTA_VERSION }}.tar.gz
-        key: dakota
-    - name: Install Dakota build dependencies
-      if: steps.cache-dakota.outputs.cache-hit != 'true'
-      run: |
-        python -m pip install --upgrade pip
-        python -m pip install numpy
-        sudo apt-get update
-        sudo apt-get install build-essential libboost-python-dev libboost-all-dev cmake gfortran libblas-dev liblapack-dev
-    - name: Build Dakota
-      if: steps.cache-dakota.outputs.cache-hit != 'true'
-      run: |
-        mkdir local
-        wget --quiet --no-check-certificate https://github.com/snl-dakota/dakota/releases/download/v${DAKOTA_VERSION}/dakota-${DAKOTA_VERSION}-public-src-cli.tar.gz
-        tar -xzf dakota-${DAKOTA_VERSION}-public-src-cli.tar.gz
-        cd dakota-${DAKOTA_VERSION}-public-src-cli
-        mkdir build
-        cd build
-        cmake \
-          -DBUILD_SHARED_LIBS=ON \
-          -DDAKOTA_PYTHON_DIRECT_INTERFACE=ON \
-          -DDAKOTA_PYTHON_DIRECT_INTERFACE_NUMPY=ON \
-          -DDAKOTA_DLL_API=OFF \
-          -DHAVE_X_GRAPHICS=OFF \
-          -DDAKOTA_ENABLE_TESTS=OFF \
-          -DDAKOTA_ENABLE_TPL_TESTS=OFF \
-          -DCMAKE_BUILD_TYPE="Release" \
-          -DDAKOTA_NO_FIND_TRILINOS:BOOL=TRUE \
-          -DCMAKE_INSTALL_PREFIX="${{ github.workspace }}/local" \
-          ..
-        make -j $(nproc) install
-    - name: Make a tar file
-      if: steps.cache-dakota.outputs.cache-hit != 'true'
-      run: |
-        tar zcf dakota-${{ env.DAKOTA_VERSION }}.tar.gz local
-
-  test-dakota:
-    name: Run Dakota tests
-    needs: build-dakota
-    if: always() && needs.build-dakota.result != 'failed'
+  run-tests:
     runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10"]
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
     steps:
     - uses: actions/checkout@v4
-      with:
-        path: src
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Restore Dakota build from cache
-      uses: actions/cache/restore@v3
-      with:
-        key: dakota
-        path: dakota-${{ env.DAKOTA_VERSION }}.tar.gz
-    - name: Unpack Dakota binaries
-      run: |
-        tar zxf dakota-${{ env.DAKOTA_VERSION }}.tar.gz
-    - name: Install Python dependencies
+    - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        python -m ip install ropt
+        python -m pip install ropt
         python -m pip install pytest
-        python -m pip install ./src
-    - name: Install Dakota/Carolina dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install libboost-python-dev libboost-all-dev
-    - name: Install Carolina
-      run: |
-        export PATH=${PATH}:${{ github.workspace }}/local/bin
-        export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${{ github.workspace }}/local/lib
-        python -m pip install git+https://github.com/equinor/carolina
+        python -m pip install .
     - name: Run pytest
       run: |
-        export PATH=${PATH}:${{ github.workspace }}/local/bin
-        export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${{ github.workspace }}/local/lib
-        cd src
         python -m pytest tests
