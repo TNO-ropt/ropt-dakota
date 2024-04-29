@@ -68,6 +68,16 @@ class DakotaOptimizer:
             self._output_dir = self._config.optimizer.output_dir
             self._start(initial_values)
 
+    @property
+    def allow_nan(self) -> bool:
+        """Whether NaN is allowed.
+
+        See the [ropt.plugins.optimizer.protocol.Optimizer][] protocol.
+
+        # noqa
+        """
+        return False
+
     def _get_constraint_indices(self) -> Optional[_ConstraintIndices]:
         if self._config.nonlinear_constraints is None:
             return None

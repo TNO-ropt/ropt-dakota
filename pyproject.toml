@@ -20,7 +20,7 @@ classifiers = [
 ]
 requires-python = ">=3.8"
 dynamic = ["version"]
-dependencies = ["numpy", "carolina"]
+dependencies = ["numpy", "carolina", "ropt>=0.2.1"]
 
 [project.optional-dependencies]
 test = ["ruff", "mypy", "pytest"]
@@ -44,7 +44,7 @@ write_to = "src/ropt_dakota/version.py"
 [tool.pytest.ini_options]
 filterwarnings = [
     "error",
-    'ignore:.*Pydantic will allow any object with no validation.*:UserWarning',          # 3.8
+    'ignore:.*Pydantic will allow any object with no validation.*:UserWarning', # 3.8
 ]
 
 [tool.ruff.lint]
