@@ -4,7 +4,7 @@ from math import isfinite
 from os import chdir
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Any, ClassVar, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 from dakota import _USER_DATA, DakotaBase, DakotaInput, run_dakota
@@ -12,7 +12,11 @@ from numpy.typing import NDArray
 from ropt.config.enopt import EnOptConfig, OptimizerConfig
 from ropt.enums import ConstraintType
 from ropt.exceptions import ConfigError
-from ropt.plugins.optimizer.protocol import OptimizerCallback
+from ropt.plugins.optimizer.protocol import (
+    OptimizerCallback,
+    OptimizerPluginProtocol,
+    OptimizerProtocol,
+)
 from ropt.plugins.optimizer.utils import create_output_path, filter_linear_constraints
 
 _PRECISION: int = 8
@@ -24,27 +28,27 @@ _ConstraintIndices = Tuple[
     NDArray[np.intc],
 ]
 
+_SUPPORTED_METHODS = {
+    "optpp_q_newton",
+    "conmin_mfd",
+    "conmin_frcg",
+    "mesh_adaptive_search",
+    "coliny_ea",
+    "soga",
+    "moga",
+    "asynch_pattern_search",
+}
 
-class DakotaOptimizer:
-    """Backend class for optimization via Dakota."""
 
-    SUPPORTED_ALGORITHMS: ClassVar[Set[str]] = {
-        "optpp_q_newton",
-        "conmin_mfd",
-        "conmin_frcg",
-        "mesh_adaptive_search",
-        "coliny_ea",
-        "soga",
-        "moga",
-        "asynch_pattern_search",
-    }
+class DakotaOptimizer(OptimizerProtocol):
+    """Plugin class for optimization via Dakota."""
 
     def __init__(
         self, config: EnOptConfig, optimizer_callback: OptimizerCallback
     ) -> None:
         """Initialize the optimizer implemented by the Dakota plugin.
 
-        See the [ropt.plugins.optimizer.protocol.Optimizer][] protocol.
+        See the [ropt.plugins.optimizer.protocol.OptimizerProtocol][] protocol.
 
         # noqa
         """
@@ -53,10 +57,17 @@ class DakotaOptimizer:
         self._constraint_indices = self._get_constraint_indices()
         self._output_dir: Path
 
+        _, _, self._method = self._config.optimizer.method.lower().rpartition("/")
+        if self._method == "default":
+            self._method = "optpp_q_newton"
+        if self._method not in _SUPPORTED_METHODS:
+            msg = f"Dakota optimizer algorithm {self._method} is not supported"
+            raise NotImplementedError(msg)
+
     def start(self, initial_values: NDArray[np.float64]) -> None:
         """Start the optimization.
 
-        See the [ropt.plugins.optimizer.protocol.Optimizer][] protocol.
+        See the [ropt.plugins.optimizer.protocol.OptimizerProtocol][] protocol.
 
         # noqa
         """
@@ -72,7 +83,7 @@ class DakotaOptimizer:
     def allow_nan(self) -> bool:
         """Whether NaN is allowed.
 
-        See the [ropt.plugins.optimizer.protocol.Optimizer][] protocol.
+        See the [ropt.plugins.optimizer.protocol.OptimizerProtocol][] protocol.
 
         # noqa
         """
@@ -119,20 +130,17 @@ class DakotaOptimizer:
 
     def _get_method_section(self) -> List[str]:
         inputs: List[str] = []
-        algorithm = self._config.optimizer.algorithm
-        if algorithm is None:
-            algorithm = "optpp_q_newton"
-        inputs.append(algorithm)
+        inputs.append(self._method)
         # Scaling is always on
         inputs.append("scaling")
         iterations = self._config.optimizer.max_iterations
-        if iterations is not None and algorithm != "asynch_pattern_search":
+        if iterations is not None and self._method != "asynch_pattern_search":
             inputs.append(f"max_iterations = {iterations}")
         convergence_tolerance = self._config.optimizer.tolerance
         if convergence_tolerance is not None:
             tolerance_option = (
                 "variable_tolerance"
-                if algorithm in ["mesh_adaptive_search", "asynch_pattern_search"]
+                if self._method in ["mesh_adaptive_search", "asynch_pattern_search"]
                 else "convergence_tolerance"
             )
             inputs.append(f"{tolerance_option} = {convergence_tolerance}")
@@ -145,7 +153,7 @@ class DakotaOptimizer:
         ):
             inputs.append("speculative")
         # Options are put in the method section:
-        return inputs + self._get_options(algorithm)
+        return inputs + self._get_options(self._method)
 
     def _get_options(self, algorithm: str) -> List[str]:
         inputs: List[str] = []
@@ -476,3 +484,28 @@ def _compute_response(  # noqa: PLR0913
         if compute_gradients:
             gradients = gradients[indices, :]
     return functions, gradients
+
+
+class DakotaOptimizerPlugin(OptimizerPluginProtocol):
+    """Plugin class for optimization via Dakota."""
+
+    def create(
+        self, config: EnOptConfig, optimizer_callback: OptimizerCallback
+    ) -> DakotaOptimizer:
+        """Initialize the optimizer plugin.
+
+        See the [ropt.plugins.optimizer.protocol.OptimizerPluginProtocol][] protocol.
+
+        # noqa
+        """
+        return DakotaOptimizer(config, optimizer_callback)
+
+    @classmethod
+    def is_supported(cls, method: str) -> bool:
+        """Check if a method is supported.
+
+        See the [ropt.plugins.protocol.PluginProtocol][] protocol.
+
+        # noqa
+        """
+        return method.lower() in (_SUPPORTED_METHODS | {"default"})

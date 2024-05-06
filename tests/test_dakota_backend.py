@@ -9,7 +9,7 @@ from ropt.enums import ConstraintType, EventType, OptimizerExitCode
 from ropt.events import OptimizationEvent
 from ropt.optimization import EnsembleOptimizer
 from ropt.results import GradientResults
-from ropt_dakota.dakota import DakotaOptimizer
+from ropt_dakota.dakota import _SUPPORTED_METHODS
 
 
 @pytest.fixture(name="enopt_config")
@@ -19,7 +19,7 @@ def enopt_config_fixture() -> Dict[str, Any]:
             "initial_values": [0.0, 0.0, 0.1],
         },
         "optimizer": {
-            "backend": "dakota",
+            "method": "dakota/default",
             "tolerance": 1e-6,
         },
         "objective_functions": {
@@ -67,14 +67,12 @@ def test_dakota_option(enopt_config: Any, evaluator: Any) -> None:
     # the terminal that we are not able to suppress. The soga method crashes
     # occasionally.
     "method",
-    sorted(
-        DakotaOptimizer.SUPPORTED_ALGORITHMS - {"conmin_mfd", "conmin_frcg", "soga"}
-    ),
+    sorted(_SUPPORTED_METHODS - {"conmin_mfd", "conmin_frcg", "soga"}),
 )
 def test_dakota_bound_constraint(
     enopt_config: Any, method: str, evaluator: Any
 ) -> None:
-    enopt_config["optimizer"]["algorithm"] = method
+    enopt_config["optimizer"]["method"] = f"dakota/{method}"
     enopt_config["variables"]["lower_bounds"] = -1.0
     enopt_config["variables"]["upper_bounds"] = [1.0, 1.0, 0.2]
 

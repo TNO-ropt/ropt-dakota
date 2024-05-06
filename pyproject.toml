@@ -20,13 +20,13 @@ classifiers = [
 ]
 requires-python = ">=3.8"
 dynamic = ["version"]
-dependencies = ["numpy", "carolina", "ropt>=0.2.1"]
+dependencies = ["numpy", "carolina", "ropt>=0.3.0"]
 
 [project.optional-dependencies]
 test = ["ruff", "mypy", "pytest"]
 
 [project.entry-points."ropt.plugins.optimizer"]
-dakota = "ropt_dakota.dakota:DakotaOptimizer"
+dakota = "ropt_dakota.dakota:DakotaOptimizerPlugin"
 
 [tool.setuptools.packages.find]
 where = ["src"]
