@@ -12,11 +12,7 @@ from numpy.typing import NDArray
 from ropt.config.enopt import EnOptConfig, OptimizerConfig
 from ropt.enums import ConstraintType
 from ropt.exceptions import ConfigError
-from ropt.plugins.optimizer.protocol import (
-    OptimizerCallback,
-    OptimizerPluginProtocol,
-    OptimizerProtocol,
-)
+from ropt.plugins.optimizer.base import Optimizer, OptimizerCallback, OptimizerPlugin
 from ropt.plugins.optimizer.utils import create_output_path, filter_linear_constraints
 
 _PRECISION: int = 8
@@ -40,7 +36,7 @@ _SUPPORTED_METHODS = {
 }
 
 
-class DakotaOptimizer(OptimizerProtocol):
+class DakotaOptimizer(Optimizer):
     """Plugin class for optimization via Dakota."""
 
     def __init__(
@@ -48,7 +44,7 @@ class DakotaOptimizer(OptimizerProtocol):
     ) -> None:
         """Initialize the optimizer implemented by the Dakota plugin.
 
-        See the [ropt.plugins.optimizer.protocol.OptimizerProtocol][] protocol.
+        See the [ropt.plugins.optimizer.base.Optimizer][] abstract base class.
 
         # noqa
         """
@@ -67,7 +63,7 @@ class DakotaOptimizer(OptimizerProtocol):
     def start(self, initial_values: NDArray[np.float64]) -> None:
         """Start the optimization.
 
-        See the [ropt.plugins.optimizer.protocol.OptimizerProtocol][] protocol.
+        See the [ropt.plugins.optimizer.base.Optimizer][] abstract base class.
 
         # noqa
         """
@@ -83,7 +79,7 @@ class DakotaOptimizer(OptimizerProtocol):
     def allow_nan(self) -> bool:
         """Whether NaN is allowed.
 
-        See the [ropt.plugins.optimizer.protocol.OptimizerProtocol][] protocol.
+        See the [ropt.plugins.optimizer.base.Optimizer][] abstract base class.
 
         # noqa
         """
@@ -486,7 +482,7 @@ def _compute_response(  # noqa: PLR0913
     return functions, gradients
 
 
-class DakotaOptimizerPlugin(OptimizerPluginProtocol):
+class DakotaOptimizerPlugin(OptimizerPlugin):
     """Plugin class for optimization via Dakota."""
 
     def create(
@@ -494,17 +490,16 @@ class DakotaOptimizerPlugin(OptimizerPluginProtocol):
     ) -> DakotaOptimizer:
         """Initialize the optimizer plugin.
 
-        See the [ropt.plugins.optimizer.protocol.OptimizerPluginProtocol][] protocol.
+        See the [ropt.plugins.optimizer.base.OptimizerPlugin][] abstract base class.
 
         # noqa
         """
         return DakotaOptimizer(config, optimizer_callback)
 
-    @classmethod
-    def is_supported(cls, method: str) -> bool:
+    def is_supported(self, method: str) -> bool:
         """Check if a method is supported.
 
-        See the [ropt.plugins.protocol.PluginProtocol][] protocol.
+        See the [ropt.plugins.optimizer.base.OptimizerPlugin][] abstract base class.
 
         # noqa
         """
