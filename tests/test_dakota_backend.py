@@ -1,14 +1,13 @@
-from functools import partial
 from pathlib import Path
-from typing import Any, Dict, cast
+from typing import Any, Dict, Tuple, cast
 
 import numpy as np
 import pytest
 from numpy.typing import NDArray
-from ropt.enums import ConstraintType, EventType, OptimizerExitCode
-from ropt.events import OptimizationEvent
+from ropt.enums import ConstraintType, OptimizerExitCode
 from ropt.optimization import EnsembleOptimizer
-from ropt.results import GradientResults
+from ropt.results import GradientResults, Results
+from ropt.workflow import BasicWorkflow
 from ropt_dakota.dakota import _SUPPORTED_METHODS
 
 
@@ -46,17 +45,10 @@ def test_dakota_unconstrained(enopt_config: Any, evaluator: Any) -> None:
 
 def test_dakota_option(enopt_config: Any, evaluator: Any) -> None:
     enopt_config["optimizer"]["options"] = ["max_iterations = 0"]
-    optimizer = EnsembleOptimizer(evaluator())
-    result = optimizer.start_optimization(
-        plan=[
-            {"config": enopt_config},
-            {"optimizer": {"id": "opt"}},
-            {"tracker": {"id": "optimum", "source": "opt"}},
-        ],
-    )
-    assert result is not None
+    variables = BasicWorkflow(enopt_config, evaluator()).run().variables
+    assert variables is not None
     assert np.allclose(
-        result.evaluations.variables,
+        variables,
         enopt_config["variables"]["initial_values"],
         atol=0.02,
     )
@@ -75,19 +67,11 @@ def test_dakota_bound_constraint(
     enopt_config["optimizer"]["method"] = f"dakota/{method}"
     enopt_config["variables"]["lower_bounds"] = -1.0
     enopt_config["variables"]["upper_bounds"] = [1.0, 1.0, 0.2]
-
-    optimizer = EnsembleOptimizer(evaluator())
-    result = optimizer.start_optimization(
-        plan=[
-            {"config": enopt_config},
-            {"optimizer": {"id": "opt"}},
-            {"tracker": {"id": "optimum", "source": "opt"}},
-        ],
-    )
-    assert result is not None
+    variables = BasicWorkflow(enopt_config, evaluator()).run().variables
+    assert variables is not None
     # Some methods do not easily convert, we just test if the ran:
     if method not in ("coliny_ea", "moga"):
-        assert np.allclose(result.evaluations.variables, [0.0, 0.0, 0.2], atol=0.02)
+        assert np.allclose(variables, [0.0, 0.0, 0.2], atol=0.02)
 
 
 def test_dakota_eq_linear_constraint(enopt_config: Any, evaluator: Any) -> None:
@@ -96,17 +80,9 @@ def test_dakota_eq_linear_constraint(enopt_config: Any, evaluator: Any) -> None:
         "rhs_values": [1.0, 0.75],
         "types": [ConstraintType.EQ, ConstraintType.EQ],
     }
-
-    optimizer = EnsembleOptimizer(evaluator())
-    result = optimizer.start_optimization(
-        plan=[
-            {"config": enopt_config},
-            {"optimizer": {"id": "opt"}},
-            {"tracker": {"id": "optimum", "source": "opt"}},
-        ],
-    )
-    assert result is not None
-    assert np.allclose(result.evaluations.variables, [0.25, 0.0, 0.75], atol=0.02)
+    variables = BasicWorkflow(enopt_config, evaluator()).run().variables
+    assert variables is not None
+    assert np.allclose(variables, [0.25, 0.0, 0.75], atol=0.02)
 
 
 def test_dakota_ge_linear_constraint(enopt_config: Any, evaluator: Any) -> None:
@@ -115,17 +91,9 @@ def test_dakota_ge_linear_constraint(enopt_config: Any, evaluator: Any) -> None:
         "rhs_values": -0.4,
         "types": [ConstraintType.GE],
     }
-
-    optimizer = EnsembleOptimizer(evaluator())
-    result = optimizer.start_optimization(
-        plan=[
-            {"config": enopt_config},
-            {"optimizer": {"id": "opt"}},
-            {"tracker": {"id": "optimum", "source": "opt"}},
-        ],
-    )
-    assert result is not None
-    assert np.allclose(result.evaluations.variables, [-0.05, 0.0, 0.45], atol=0.02)
+    variables = BasicWorkflow(enopt_config, evaluator()).run().variables
+    assert variables is not None
+    assert np.allclose(variables, [-0.05, 0.0, 0.45], atol=0.02)
 
 
 def test_dakota_le_linear_constraint(enopt_config: Any, evaluator: Any) -> None:
@@ -134,17 +102,9 @@ def test_dakota_le_linear_constraint(enopt_config: Any, evaluator: Any) -> None:
         "rhs_values": 0.4,
         "types": [ConstraintType.LE],
     }
-
-    optimizer = EnsembleOptimizer(evaluator())
-    result = optimizer.start_optimization(
-        plan=[
-            {"config": enopt_config},
-            {"optimizer": {"id": "opt"}},
-            {"tracker": {"id": "optimum", "source": "opt"}},
-        ],
-    )
-    assert result is not None
-    assert np.allclose(result.evaluations.variables, [-0.05, 0.0, 0.45], atol=0.02)
+    variables = BasicWorkflow(enopt_config, evaluator()).run().variables
+    assert variables is not None
+    assert np.allclose(variables, [-0.05, 0.0, 0.45], atol=0.02)
 
 
 def test_dakota_le_ge_linear_constraints(enopt_config: Any, evaluator: Any) -> None:
@@ -153,17 +113,9 @@ def test_dakota_le_ge_linear_constraints(enopt_config: Any, evaluator: Any) -> N
         "rhs_values": [0.4, -0.4],
         "types": [ConstraintType.LE, ConstraintType.GE],
     }
-
-    optimizer = EnsembleOptimizer(evaluator())
-    result = optimizer.start_optimization(
-        plan=[
-            {"config": enopt_config},
-            {"optimizer": {"id": "opt"}},
-            {"tracker": {"id": "optimum", "source": "opt"}},
-        ],
-    )
-    assert result is not None
-    assert np.allclose(result.evaluations.variables, [-0.05, 0.0, 0.45], atol=0.02)
+    variables = BasicWorkflow(enopt_config, evaluator()).run().variables
+    assert variables is not None
+    assert np.allclose(variables, [-0.05, 0.0, 0.45], atol=0.02)
 
 
 def test_dakota_eq_nonlinear_constraint(
@@ -177,17 +129,9 @@ def test_dakota_eq_nonlinear_constraint(
         *test_functions,
         lambda variables: cast(NDArray[np.float64], variables[0] + variables[2]),
     )
-
-    optimizer = EnsembleOptimizer(evaluator(test_functions))
-    result = optimizer.start_optimization(
-        plan=[
-            {"config": enopt_config},
-            {"optimizer": {"id": "opt"}},
-            {"tracker": {"id": "optimum", "source": "opt"}},
-        ],
-    )
-    assert result is not None
-    assert np.allclose(result.evaluations.variables, [0.25, 0.0, 0.75], atol=0.02)
+    variables = BasicWorkflow(enopt_config, evaluator(test_functions)).run().variables
+    assert variables is not None
+    assert np.allclose(variables, [0.25, 0.0, 0.75], atol=0.02)
 
 
 @pytest.mark.parametrize("bound_type", [ConstraintType.LE, ConstraintType.GE])
@@ -208,17 +152,9 @@ def test_dakota_ineq_nonlinear_constraint(
             NDArray[np.float64], weight * variables[0] + weight * variables[2]
         ),
     )
-
-    optimizer = EnsembleOptimizer(evaluator(test_functions))
-    result = optimizer.start_optimization(
-        plan=[
-            {"config": enopt_config},
-            {"optimizer": {"id": "opt"}},
-            {"tracker": {"id": "optimum", "source": "opt"}},
-        ],
-    )
-    assert result is not None
-    assert np.allclose(result.evaluations.variables, [-0.05, 0.0, 0.45], atol=0.02)
+    variables = BasicWorkflow(enopt_config, evaluator(test_functions)).run().variables
+    assert variables is not None
+    assert np.allclose(variables, [-0.05, 0.0, 0.45], atol=0.02)
 
 
 def test_dakota_failed_realizations(enopt_config: Any, evaluator: Any) -> None:
@@ -230,66 +166,40 @@ def test_dakota_failed_realizations(enopt_config: Any, evaluator: Any) -> None:
 
     functions = [func_p, func_q]
 
-    def handle_finished(event: OptimizationEvent) -> None:
-        assert event.exit_code == OptimizerExitCode.TOO_FEW_REALIZATIONS
-
-    optimizer = EnsembleOptimizer(evaluator(functions))
-    optimizer.add_observer(EventType.FINISHED_OPTIMIZER_STEP, handle_finished)
-    optimizer.start_optimization([{"config": enopt_config}, {"optimizer": {}}])
+    assert (
+        BasicWorkflow(
+            enopt_config,
+            evaluator(functions),
+        )
+        .run()
+        .exit_code
+        == OptimizerExitCode.TOO_FEW_REALIZATIONS
+    )
 
 
 def test_dakota_user_abort(enopt_config: Any, evaluator: Any) -> None:
-    optimizer = EnsembleOptimizer(evaluator())
+    def observer(results: Tuple[Results, ...]) -> None:
+        if results[0].result_id == 2:
+            workflow.abort_optimization()
 
-    def observer(event: OptimizationEvent, optimizer: EnsembleOptimizer) -> None:
-        assert event.results is not None
-        if event.results[0].result_id == 2:
-            optimizer.abort_optimization()
-
-    def handle_finished(event: OptimizationEvent) -> None:
-        assert event.exit_code == OptimizerExitCode.USER_ABORT
-
-    optimizer.add_observer(
-        EventType.FINISHED_EVALUATION, partial(observer, optimizer=optimizer)
-    )
-    optimizer.add_observer(EventType.FINISHED_OPTIMIZER_STEP, handle_finished)
-    result = optimizer.start_optimization(
-        plan=[
-            {"config": enopt_config},
-            {"optimizer": {"id": "opt"}},
-            {"tracker": {"id": "optimum", "source": "opt"}},
-        ],
-    )
-    assert result is not None
-    assert result.result_id == 2
+    workflow = BasicWorkflow(enopt_config, evaluator(), callback=observer)
+    workflow.run()
+    assert workflow.results is not None
+    assert workflow.results.result_id == 2
+    assert workflow.exit_code == OptimizerExitCode.USER_ABORT
 
 
 def test_dakota_split_evaluations(enopt_config: Any, evaluator: Any) -> None:
     enopt_config["optimizer"]["split_evaluations"] = True
+    variables = BasicWorkflow(enopt_config, evaluator()).run().variables
+    assert variables is not None
+    assert np.allclose(variables, [0.0, 0.0, 0.5], atol=0.02)
 
-    optimizer = EnsembleOptimizer(evaluator())
-    result = optimizer.start_optimization(
-        plan=[
-            {"config": enopt_config},
-            {"optimizer": {"id": "opt"}},
-            {"tracker": {"id": "optimum", "source": "opt"}},
-        ],
-    )
-    assert result is not None
-    assert np.allclose(result.evaluations.variables, [0.0, 0.0, 0.5], atol=0.02)
     enopt_config["optimizer"]["split_evaluations"] = True
     enopt_config["optimizer"]["speculative"] = True
-
-    optimizer = EnsembleOptimizer(evaluator())
-    result = optimizer.start_optimization(
-        plan=[
-            {"config": enopt_config},
-            {"optimizer": {"id": "opt"}},
-            {"tracker": {"id": "optimum", "source": "opt"}},
-        ],
-    )
-    assert result is not None
-    assert np.allclose(result.evaluations.variables, [0.0, 0.0, 0.5], atol=0.02)
+    variables = BasicWorkflow(enopt_config, evaluator()).run().variables
+    assert variables is not None
+    assert np.allclose(variables, [0.0, 0.0, 0.5], atol=0.02)
 
 
 def test_dakota_optimizer_variables_subset(enopt_config: Any, evaluator: Any) -> None:
@@ -301,25 +211,20 @@ def test_dakota_optimizer_variables_subset(enopt_config: Any, evaluator: Any) ->
     # values for the other parameters:
     enopt_config["variables"]["indices"] = [0, 2]
 
-    def assert_gradient(event: OptimizationEvent) -> None:
-        assert event.results is not None
-        for item in event.results:
+    def assert_gradient(results: Tuple[Results, ...]) -> None:
+        for item in results:
             if isinstance(item, GradientResults):
                 assert item.gradients is not None
                 assert item.gradients.weighted_objective[1] == 0.0
                 assert np.all(np.equal(item.gradients.objectives[:, 1], 0.0))
 
-    optimizer = EnsembleOptimizer(evaluator())
-    optimizer.add_observer(EventType.FINISHED_EVALUATION, assert_gradient)
-    result = optimizer.start_optimization(
-        plan=[
-            {"config": enopt_config},
-            {"optimizer": {"id": "opt"}},
-            {"tracker": {"id": "optimum", "source": "opt"}},
-        ],
+    variables = (
+        BasicWorkflow(enopt_config, evaluator(), callback=assert_gradient)
+        .run()
+        .variables
     )
-    assert result is not None
-    assert np.allclose(result.evaluations.variables, [0.0, 0.0, 0.5], atol=0.02)
+    assert variables is not None
+    assert np.allclose(variables, [0.0, 0.0, 0.5], atol=0.02)
 
 
 def test_dakota_optimizer_variables_subset_linear_constraints(
@@ -336,17 +241,9 @@ def test_dakota_optimizer_variables_subset_linear_constraints(
         "types": [ConstraintType.EQ, ConstraintType.EQ, ConstraintType.EQ],
     }
     enopt_config["variables"]["indices"] = [0, 2]
-
-    optimizer = EnsembleOptimizer(evaluator())
-    result = optimizer.start_optimization(
-        plan=[
-            {"config": enopt_config},
-            {"optimizer": {"id": "opt"}},
-            {"tracker": {"id": "optimum", "source": "opt"}},
-        ],
-    )
-    assert result is not None
-    assert np.allclose(result.evaluations.variables, [0.25, 1.0, 0.75], atol=0.02)
+    variables = BasicWorkflow(enopt_config, evaluator()).run().variables
+    assert variables is not None
+    assert np.allclose(variables, [0.25, 1.0, 0.75], atol=0.02)
 
 
 def test_dakota_output_dir(tmp_path: Path, enopt_config: Any, evaluator: Any) -> None:
@@ -354,14 +251,9 @@ def test_dakota_output_dir(tmp_path: Path, enopt_config: Any, evaluator: Any) ->
     output_dir.mkdir()
     enopt_config["optimizer"]["output_dir"] = output_dir
     enopt_config["optimizer"]["max_functions"] = 1
-
-    optimizer = EnsembleOptimizer(evaluator())
-    optimizer.start_optimization([{"config": enopt_config}, {"optimizer": {}}])
+    BasicWorkflow(enopt_config, evaluator()).run()
     assert (output_dir / "dakota").exists()
-
-    optimizer = EnsembleOptimizer(evaluator())
-    optimizer.start_optimization([{"config": enopt_config}, {"optimizer": {}}])
+    BasicWorkflow(enopt_config, evaluator()).run()
     assert (output_dir / "dakota-001").exists()
-    optimizer = EnsembleOptimizer(evaluator())
-    optimizer.start_optimization([{"config": enopt_config}, {"optimizer": {}}])
+    BasicWorkflow(enopt_config, evaluator()).run()
     assert (output_dir / "dakota-002").exists()
