@@ -4,7 +4,7 @@ from math import isfinite
 from os import chdir
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Final, List, Optional, Tuple
 
 import numpy as np
 from dakota import _USER_DATA, DakotaBase, DakotaInput, run_dakota
@@ -15,8 +15,8 @@ from ropt.exceptions import ConfigError
 from ropt.plugins.optimizer.base import Optimizer, OptimizerCallback, OptimizerPlugin
 from ropt.plugins.optimizer.utils import create_output_path, filter_linear_constraints
 
-_PRECISION: int = 8
-_LARGE_NUMBER_FOR_INF = 1e30
+_PRECISION: Final[int] = 8
+_LARGE_NUMBER_FOR_INF: Final = 1e30
 
 _ConstraintIndices = Tuple[
     NDArray[np.intc],
@@ -24,7 +24,7 @@ _ConstraintIndices = Tuple[
     NDArray[np.intc],
 ]
 
-_SUPPORTED_METHODS = {
+_SUPPORTED_METHODS: Final = {
     "optpp_q_newton",
     "conmin_mfd",
     "conmin_frcg",
