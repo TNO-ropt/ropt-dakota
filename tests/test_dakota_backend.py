@@ -7,7 +7,7 @@ from numpy.typing import NDArray
 from ropt.enums import ConstraintType, OptimizerExitCode
 from ropt.optimization import EnsembleOptimizer
 from ropt.results import GradientResults, Results
-from ropt.workflow import BasicWorkflow
+from ropt.workflow import BasicOptimizationWorkflow
 from ropt_dakota.dakota import _SUPPORTED_METHODS
 
 
@@ -45,7 +45,7 @@ def test_dakota_unconstrained(enopt_config: Any, evaluator: Any) -> None:
 
 def test_dakota_option(enopt_config: Any, evaluator: Any) -> None:
     enopt_config["optimizer"]["options"] = ["max_iterations = 0"]
-    variables = BasicWorkflow(enopt_config, evaluator()).run().variables
+    variables = BasicOptimizationWorkflow(enopt_config, evaluator()).run().variables
     assert variables is not None
     assert np.allclose(
         variables,
@@ -67,7 +67,7 @@ def test_dakota_bound_constraint(
     enopt_config["optimizer"]["method"] = f"dakota/{method}"
     enopt_config["variables"]["lower_bounds"] = -1.0
     enopt_config["variables"]["upper_bounds"] = [1.0, 1.0, 0.2]
-    variables = BasicWorkflow(enopt_config, evaluator()).run().variables
+    variables = BasicOptimizationWorkflow(enopt_config, evaluator()).run().variables
     assert variables is not None
     # Some methods do not easily convert, we just test if the ran:
     if method not in ("coliny_ea", "moga"):
@@ -80,7 +80,7 @@ def test_dakota_eq_linear_constraint(enopt_config: Any, evaluator: Any) -> None:
         "rhs_values": [1.0, 0.75],
         "types": [ConstraintType.EQ, ConstraintType.EQ],
     }
-    variables = BasicWorkflow(enopt_config, evaluator()).run().variables
+    variables = BasicOptimizationWorkflow(enopt_config, evaluator()).run().variables
     assert variables is not None
     assert np.allclose(variables, [0.25, 0.0, 0.75], atol=0.02)
 
@@ -91,7 +91,7 @@ def test_dakota_ge_linear_constraint(enopt_config: Any, evaluator: Any) -> None:
         "rhs_values": -0.4,
         "types": [ConstraintType.GE],
     }
-    variables = BasicWorkflow(enopt_config, evaluator()).run().variables
+    variables = BasicOptimizationWorkflow(enopt_config, evaluator()).run().variables
     assert variables is not None
     assert np.allclose(variables, [-0.05, 0.0, 0.45], atol=0.02)
 
@@ -102,7 +102,7 @@ def test_dakota_le_linear_constraint(enopt_config: Any, evaluator: Any) -> None:
         "rhs_values": 0.4,
         "types": [ConstraintType.LE],
     }
-    variables = BasicWorkflow(enopt_config, evaluator()).run().variables
+    variables = BasicOptimizationWorkflow(enopt_config, evaluator()).run().variables
     assert variables is not None
     assert np.allclose(variables, [-0.05, 0.0, 0.45], atol=0.02)
 
@@ -113,7 +113,7 @@ def test_dakota_le_ge_linear_constraints(enopt_config: Any, evaluator: Any) -> N
         "rhs_values": [0.4, -0.4],
         "types": [ConstraintType.LE, ConstraintType.GE],
     }
-    variables = BasicWorkflow(enopt_config, evaluator()).run().variables
+    variables = BasicOptimizationWorkflow(enopt_config, evaluator()).run().variables
     assert variables is not None
     assert np.allclose(variables, [-0.05, 0.0, 0.45], atol=0.02)
 
@@ -129,7 +129,11 @@ def test_dakota_eq_nonlinear_constraint(
         *test_functions,
         lambda variables: cast(NDArray[np.float64], variables[0] + variables[2]),
     )
-    variables = BasicWorkflow(enopt_config, evaluator(test_functions)).run().variables
+    variables = (
+        BasicOptimizationWorkflow(enopt_config, evaluator(test_functions))
+        .run()
+        .variables
+    )
     assert variables is not None
     assert np.allclose(variables, [0.25, 0.0, 0.75], atol=0.02)
 
@@ -152,7 +156,11 @@ def test_dakota_ineq_nonlinear_constraint(
             NDArray[np.float64], weight * variables[0] + weight * variables[2]
         ),
     )
-    variables = BasicWorkflow(enopt_config, evaluator(test_functions)).run().variables
+    variables = (
+        BasicOptimizationWorkflow(enopt_config, evaluator(test_functions))
+        .run()
+        .variables
+    )
     assert variables is not None
     assert np.allclose(variables, [-0.05, 0.0, 0.45], atol=0.02)
 
@@ -167,7 +175,7 @@ def test_dakota_failed_realizations(enopt_config: Any, evaluator: Any) -> None:
     functions = [func_p, func_q]
 
     assert (
-        BasicWorkflow(
+        BasicOptimizationWorkflow(
             enopt_config,
             evaluator(functions),
         )
@@ -182,7 +190,9 @@ def test_dakota_user_abort(enopt_config: Any, evaluator: Any) -> None:
         if results[0].result_id == 2:
             workflow.abort_optimization()
 
-    workflow = BasicWorkflow(enopt_config, evaluator(), callback=observer)
+    workflow = BasicOptimizationWorkflow(enopt_config, evaluator()).add_callback(
+        observer
+    )
     workflow.run()
     assert workflow.results is not None
     assert workflow.results.result_id == 2
@@ -191,13 +201,13 @@ def test_dakota_user_abort(enopt_config: Any, evaluator: Any) -> None:
 
 def test_dakota_split_evaluations(enopt_config: Any, evaluator: Any) -> None:
     enopt_config["optimizer"]["split_evaluations"] = True
-    variables = BasicWorkflow(enopt_config, evaluator()).run().variables
+    variables = BasicOptimizationWorkflow(enopt_config, evaluator()).run().variables
     assert variables is not None
     assert np.allclose(variables, [0.0, 0.0, 0.5], atol=0.02)
 
     enopt_config["optimizer"]["split_evaluations"] = True
     enopt_config["optimizer"]["speculative"] = True
-    variables = BasicWorkflow(enopt_config, evaluator()).run().variables
+    variables = BasicOptimizationWorkflow(enopt_config, evaluator()).run().variables
     assert variables is not None
     assert np.allclose(variables, [0.0, 0.0, 0.5], atol=0.02)
 
@@ -219,7 +229,8 @@ def test_dakota_optimizer_variables_subset(enopt_config: Any, evaluator: Any) ->
                 assert np.all(np.equal(item.gradients.objectives[:, 1], 0.0))
 
     variables = (
-        BasicWorkflow(enopt_config, evaluator(), callback=assert_gradient)
+        BasicOptimizationWorkflow(enopt_config, evaluator())
+        .add_callback(assert_gradient)
         .run()
         .variables
     )
@@ -241,7 +252,7 @@ def test_dakota_optimizer_variables_subset_linear_constraints(
         "types": [ConstraintType.EQ, ConstraintType.EQ, ConstraintType.EQ],
     }
     enopt_config["variables"]["indices"] = [0, 2]
-    variables = BasicWorkflow(enopt_config, evaluator()).run().variables
+    variables = BasicOptimizationWorkflow(enopt_config, evaluator()).run().variables
     assert variables is not None
     assert np.allclose(variables, [0.25, 1.0, 0.75], atol=0.02)
 
@@ -251,9 +262,9 @@ def test_dakota_output_dir(tmp_path: Path, enopt_config: Any, evaluator: Any) ->
     output_dir.mkdir()
     enopt_config["optimizer"]["output_dir"] = output_dir
     enopt_config["optimizer"]["max_functions"] = 1
-    BasicWorkflow(enopt_config, evaluator()).run()
+    BasicOptimizationWorkflow(enopt_config, evaluator()).run()
     assert (output_dir / "dakota").exists()
-    BasicWorkflow(enopt_config, evaluator()).run()
+    BasicOptimizationWorkflow(enopt_config, evaluator()).run()
     assert (output_dir / "dakota-001").exists()
-    BasicWorkflow(enopt_config, evaluator()).run()
+    BasicOptimizationWorkflow(enopt_config, evaluator()).run()
     assert (output_dir / "dakota-002").exists()
