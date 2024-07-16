@@ -5,7 +5,6 @@ import numpy as np
 import pytest
 from numpy.typing import NDArray
 from ropt.enums import ConstraintType, OptimizerExitCode
-from ropt.optimization import EnsembleOptimizer
 from ropt.results import GradientResults, Results
 from ropt.workflow import BasicOptimizationWorkflow
 from ropt_dakota.dakota import _SUPPORTED_METHODS
@@ -31,16 +30,9 @@ def enopt_config_fixture() -> Dict[str, Any]:
 
 
 def test_dakota_unconstrained(enopt_config: Any, evaluator: Any) -> None:
-    optimizer = EnsembleOptimizer(evaluator())
-    result = optimizer.start_optimization(
-        plan=[
-            {"config": enopt_config},
-            {"optimizer": {"id": "opt"}},
-            {"tracker": {"id": "optimum", "source": "opt"}},
-        ],
-    )
-    assert result is not None
-    assert np.allclose(result.evaluations.variables, [0.0, 0.0, 0.5], atol=0.02)
+    variables = BasicOptimizationWorkflow(enopt_config, evaluator()).run().variables
+    assert variables is not None
+    assert np.allclose(variables, [0.0, 0.0, 0.5], atol=0.02)
 
 
 def test_dakota_option(enopt_config: Any, evaluator: Any) -> None:
