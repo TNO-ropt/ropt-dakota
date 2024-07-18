@@ -400,7 +400,7 @@ class _DakotaDriver(DakotaBase):
             retval["fnGrads"] = gradient_result
         return retval
 
-    def run_dakota(  # noqa: PLR0913
+    def run_dakota(
         self,
         infile: str = "dakota.in",
         stdout: Optional[str] = None,
