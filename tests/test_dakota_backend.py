@@ -8,6 +8,7 @@ from ropt.enums import ConstraintType, EventType, OptimizerExitCode
 from ropt.optimization import Event
 from ropt.plan import OptimizationPlanRunner
 from ropt.results import GradientResults
+
 from ropt_dakota.dakota import _SUPPORTED_METHODS
 
 
