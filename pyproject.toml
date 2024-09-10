@@ -52,44 +52,38 @@ filterwarnings = [
     'ignore:.*Pydantic will allow any object with no validation.*:UserWarning', # 3.8
 ]
 
-[tool.ruff.lint]
-select = ["ALL"]
-ignore = [
-    "ANN101",
-    "ANN102",
-    "AIR",
-    "COM812",
-    "COM819",
-    "D206",
-    "E501",
-    "DJ",
-    "FA",
-    "ISC001",
-    "PGH",
-    "UP",
-    "ANN101",
-    "ANN102",
-    "FIX002",
-    "S101",
-    "TD002",
-    "TD003",
-    "Q",
-    "UP",
-    "W191",
-]
-
 [tool.ruff.format]
 exclude = ["src/ropt_dakota/version.py", "build"]
 
-[tool.ruff.lint.pydocstyle]
-convention = "google"
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "AIR",    # airflow-variable-name-task-id-mismatch
+    "COM812", # missing-trailing-comma
+    "E501",   # line-too-lone
+    "ISC001", # single-line-implicit-string-concatenation   
+    "DJ",     # flake8-django
+    "FA",     # flake8-future-annotations
+    "UP",     # pyupgrade 
+    "S101",   # assert
+]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["D", "ANN401", "PLR2004"]
+"tests/*" = [
+    "E402",    # module-import-not-at-top-of-file
+    "D",       # pydocstyle
+    "ANN401",  # anytype
+    "FBT",     # flake8-boolean-trap
+    "PLR2004", # magic-value-comparison
+    "PLR0913", # too-many-arguments
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
 
 [tool.mypy]
 strict = true
 
 [[tool.mypy.overrides]]
-module = ["dakota", "ropt_dakota.version"]
+module = ["dakota"]
 ignore_missing_imports = true
