@@ -20,22 +20,18 @@ classifiers = [
 ]
 requires-python = ">=3.8"
 dynamic = ["version"]
-dependencies = ["numpy<2", "carolina", "ropt>=0.5.0"]
+dependencies = ["numpy<2", "carolina"]
 
 [project.urls]
 "Homepage" = "https://github.com/TNO-ropt/ropt-dakota"
 "Repository" = "https://github.com/TNO-ropt/ropt-dakota"
 "Bug Tracker" = "https://github.com/TNO-ropt/ropt-dakota/issues"
 
-[project.optional-dependencies]
-test = ["ruff", "mypy", "pytest"]
-
 [project.entry-points."ropt.plugins.optimizer"]
 dakota = "ropt_dakota.dakota:DakotaOptimizerPlugin"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["ropt_dakota"]
 
 [tool.setuptools.package-data]
 ropt_dakota = ["py.typed"]
@@ -87,3 +83,10 @@ strict = true
 [[tool.mypy.overrides]]
 module = ["dakota"]
 ignore_missing_imports = true
+
+[tool.uv]
+dev-dependencies = [
+    "mypy>=1.11.2",
+    "pytest>=8.3.3",
+    "ruff>=0.6.5",
+]

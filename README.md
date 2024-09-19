@@ -23,18 +23,11 @@ pip install ropt-dakota
 
 ## Development
 The `ropt-dakota` source distribution can be found on
-[GitHub](https://github.com/tno-ropt/ropt-dakota). To install from source, enter
-the distribution directory and execute:
+[GitHub](https://github.com/tno-ropt/ropt-dakota). It uses a standard
+`pyproject.toml` file, which contains build information and configuration
+settings for various tools. A development environment can be set up with
+compatible tools of your choice.
 
-```bash
-pip install .
-```
-
-
-## Running the tests
-To run the test suite, install the necessary dependencies and execute `pytest`:
-
-```bash
-pip install .[test]
-pytest
-```
+The `ropt-dakota` package uses [ruff](https://docs.astral.sh/ruff/) (for
+formatting and linting), [mypy](https://www.mypy-lang.org/) (for static typing),
+and [pytest](https://docs.pytest.org/en/stable/) (for running the test suite).
