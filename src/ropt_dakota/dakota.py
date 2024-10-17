@@ -85,6 +85,16 @@ class DakotaOptimizer(Optimizer):
         """
         return False
 
+    @property
+    def is_parallel(self) -> bool:
+        """Whether the current run is parallel.
+
+        See the [ropt.plugins.optimizer.base.Optimizer][] abstract base class.
+
+        # noqa
+        """
+        return False
+
     def _get_constraint_indices(self) -> Optional[_ConstraintIndices]:
         if self._config.nonlinear_constraints is None:
             return None
