@@ -8,7 +8,7 @@ GNU General Public License v3.0 (a copy is provided in the LICENSE file).
 
 
 ## Dependencies
-This code has been tested with Python versions 3.8-3.12.
+This code has been tested with Python version 3.11.
 
 The plugin is based on the [Dakota](https://dakota.sandia.gov/) optimizer and
 depends on the [Carolina](https://github.com/equinor/Carolina) Python wrapper.

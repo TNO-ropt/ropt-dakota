@@ -4,7 +4,7 @@ from math import isfinite
 from os import chdir
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Any, Dict, Final, List, Optional, Tuple
+from typing import Any, Final
 
 import numpy as np
 from dakota import _USER_DATA, DakotaBase, DakotaInput, run_dakota
@@ -18,7 +18,7 @@ from ropt.plugins.optimizer.utils import create_output_path, filter_linear_const
 _PRECISION: Final[int] = 8
 _LARGE_NUMBER_FOR_INF: Final = 1e30
 
-_ConstraintIndices = Tuple[
+_ConstraintIndices = tuple[
     NDArray[np.intc],
     NDArray[np.intc],
     NDArray[np.intc],
@@ -95,7 +95,7 @@ class DakotaOptimizer(Optimizer):
         """
         return False
 
-    def _get_constraint_indices(self) -> Optional[_ConstraintIndices]:
+    def _get_constraint_indices(self) -> _ConstraintIndices | None:
         if self._config.nonlinear_constraints is None:
             return None
         types = self._config.nonlinear_constraints.types
@@ -114,7 +114,7 @@ class DakotaOptimizer(Optimizer):
             ),
         )
 
-    def _get_inputs(self, initial_values: NDArray[np.float64]) -> Dict[str, List[str]]:
+    def _get_inputs(self, initial_values: NDArray[np.float64]) -> dict[str, list[str]]:
         return {
             "environment": [
                 "tabular_graphics_data",
@@ -134,8 +134,8 @@ class DakotaOptimizer(Optimizer):
             ],
         }
 
-    def _get_method_section(self) -> List[str]:
-        inputs: List[str] = []
+    def _get_method_section(self) -> list[str]:
+        inputs: list[str] = []
         inputs.append(self._method)
         # Scaling is always on
         inputs.append("scaling")
@@ -161,8 +161,8 @@ class DakotaOptimizer(Optimizer):
         # Options are put in the method section:
         return inputs + self._get_options(self._method)
 
-    def _get_options(self, algorithm: str) -> List[str]:
-        inputs: List[str] = []
+    def _get_options(self, algorithm: str) -> list[str]:
+        inputs: list[str] = []
         if isinstance(self._config.optimizer.options, list):
             try:
                 for option in self._config.optimizer.options:
@@ -180,8 +180,8 @@ class DakotaOptimizer(Optimizer):
                 raise ConfigError(msg) from exc
         return inputs
 
-    def _get_variables_section(self, initial_values: NDArray[np.float64]) -> List[str]:
-        inputs: List[str] = []
+    def _get_variables_section(self, initial_values: NDArray[np.float64]) -> list[str]:
+        inputs: list[str] = []
         names = self._config.variables.names
         if names is None:
             names = tuple(f"variable{idx}" for idx in range(initial_values.size))
@@ -231,7 +231,7 @@ class DakotaOptimizer(Optimizer):
 
     def _get_linear_constraints(
         self,
-    ) -> Tuple[NDArray[np.float64], NDArray[np.float64], NDArray[np.ubyte]]:
+    ) -> tuple[NDArray[np.float64], NDArray[np.float64], NDArray[np.ubyte]]:
         linear_constraints_config = self._config.linear_constraints
         assert linear_constraints_config is not None
 
@@ -246,8 +246,8 @@ class DakotaOptimizer(Optimizer):
 
         return coefficients, rhs_values, types
 
-    def _get_linear_constraints_section(self) -> List[str]:
-        inputs: List[str] = []
+    def _get_linear_constraints_section(self) -> list[str]:
+        inputs: list[str] = []
 
         if self._config.linear_constraints is not None:
             all_coefficients, all_rhs_values, all_types = self._get_linear_constraints()
@@ -309,8 +309,8 @@ class DakotaOptimizer(Optimizer):
 
         return inputs
 
-    def _get_responses_section(self) -> List[str]:
-        inputs: List[str] = []
+    def _get_responses_section(self) -> list[str]:
+        inputs: list[str] = []
         # ropt currently only allows for a single objective function
         inputs.append("objective_function_scale_types 'value'")
         inputs.append("objective_function_scales = 1.0")
@@ -368,20 +368,20 @@ class _DakotaDriver(DakotaBase):
         self,
         optimizer_config: OptimizerConfig,
         optimizer_callback: OptimizerCallback,
-        constraint_indices: Optional[_ConstraintIndices],
-        inputs: Dict[str, List[str]],
+        constraint_indices: _ConstraintIndices | None,
+        inputs: dict[str, list[str]],
     ) -> None:
         self._optimizer_config = optimizer_config
         self._optimizer_callback = optimizer_callback
         self._split_evaluations = optimizer_config.split_evaluations
         self._constraint_indices = constraint_indices
-        self.exception: Optional[Exception] = None
+        self.exception: Exception | None = None
         super().__init__(DakotaInput(**inputs))
 
     def dakota_callback(
         self,
         **kwargs: Any,  # noqa: ANN401
-    ) -> Dict[str, NDArray[np.float64]]:
+    ) -> dict[str, NDArray[np.float64]]:
         try:
             asv = [response for response in kwargs["asv"] if response > 0]
             if len(set(asv)) > 1:
@@ -413,8 +413,8 @@ class _DakotaDriver(DakotaBase):
     def run_dakota(
         self,
         infile: str = "dakota.in",
-        stdout: Optional[str] = None,
-        stderr: Optional[str] = None,
+        stdout: str | None = None,
+        stderr: str | None = None,
         restart: int = 0,
         throw_on_error: bool = True,  # noqa: FBT001,FBT002
     ) -> None:
@@ -436,7 +436,7 @@ class _DakotaDriver(DakotaBase):
                 fp_out.writelines(lines)
         run_dakota(infile, stdout, stderr, restart, throw_on_error)
 
-    def _override_input_file(self) -> Optional[str]:
+    def _override_input_file(self) -> str | None:
         input_file = None
         if isinstance(self._optimizer_config.options, list):
             input_file = next(
@@ -460,13 +460,13 @@ class _DakotaDriver(DakotaBase):
 
 def _compute_response(  # noqa: PLR0913
     variables: NDArray[np.float64],
-    constraint_indices: Optional[_ConstraintIndices],
+    constraint_indices: _ConstraintIndices | None,
     optimizer_callback: OptimizerCallback,
     *,
     return_functions: bool,
     compute_gradients: bool,
     split_evaluations: bool,
-) -> Tuple[NDArray[np.float64], NDArray[np.float64]]:
+) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
     if return_functions and compute_gradients and split_evaluations:
         functions, _ = optimizer_callback(
             variables, return_functions=True, return_gradients=False

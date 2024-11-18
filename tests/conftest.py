@@ -1,5 +1,5 @@
 from functools import partial
-from typing import Any, Callable, List, Tuple
+from typing import Any, Callable
 
 import numpy as np
 import pytest
@@ -12,7 +12,7 @@ _Function = Callable[[NDArray[np.float64]], float]
 def _function_runner(
     variables: NDArray[np.float64],
     metadata: EvaluatorContext,
-    functions: List[_Function],
+    functions: list[_Function],
 ) -> EvaluatorResult:
     objective_count = metadata.config.objective_functions.weights.size
     constraint_count = (
@@ -57,7 +57,7 @@ def _compute_distance_squared(
 
 
 @pytest.fixture(name="test_functions", scope="session")
-def fixture_test_functions() -> Tuple[_Function, _Function]:
+def fixture_test_functions() -> tuple[_Function, _Function]:
     return (
         partial(_compute_distance_squared, target=np.array([0.5, 0.5, 0.5])),
         partial(_compute_distance_squared, target=np.array([-1.5, -1.5, 0.5])),
@@ -65,8 +65,8 @@ def fixture_test_functions() -> Tuple[_Function, _Function]:
 
 
 @pytest.fixture(scope="session")
-def evaluator(test_functions: Any) -> Callable[[List[_Function]], Evaluator]:
-    def _evaluator(test_functions: List[_Function] = test_functions) -> Evaluator:
+def evaluator(test_functions: Any) -> Callable[[list[_Function]], Evaluator]:
+    def _evaluator(test_functions: list[_Function] = test_functions) -> Evaluator:
         return partial(_function_runner, functions=test_functions)
 
     return _evaluator
