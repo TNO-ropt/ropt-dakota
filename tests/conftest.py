@@ -14,7 +14,7 @@ def _function_runner(
     metadata: EvaluatorContext,
     functions: list[_Function],
 ) -> EvaluatorResult:
-    objective_count = metadata.config.objective_functions.weights.size
+    objective_count = metadata.config.objectives.weights.size
     constraint_count = (
         0
         if metadata.config.nonlinear_constraints is None
