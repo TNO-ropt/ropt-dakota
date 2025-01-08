@@ -182,9 +182,7 @@ class DakotaOptimizer(Optimizer):
 
     def _get_variables_section(self, initial_values: NDArray[np.float64]) -> list[str]:
         inputs: list[str] = []
-        names = self._config.variables.names
-        if names is None:
-            names = tuple(f"variable{idx}" for idx in range(initial_values.size))
+        names = tuple(f"variable{idx}" for idx in range(initial_values.size))
         lower_bounds = self._config.variables.lower_bounds
         upper_bounds = self._config.variables.upper_bounds
         variable_indices = self._config.variables.indices
@@ -218,14 +216,8 @@ class DakotaOptimizer(Optimizer):
                 for bound in upper_bounds
             ),
         )
-        variable_names = [
-            "_".join(str(name) for name in variable_name)
-            if isinstance(variable_name, tuple)
-            else str(variable_name)
-            for variable_name in names
-        ]
         inputs.append(
-            "descriptors " + "  ".join(f"'{name}'" for name in variable_names),
+            "descriptors " + "  ".join(f"'{name}'" for name in names),
         )
         return inputs
 
