@@ -498,7 +498,7 @@ class DakotaOptimizerPlugin(OptimizerPlugin):
         """
         return DakotaOptimizer(config, optimizer_callback)
 
-    def is_supported(self, method: str, *, explicit: bool) -> bool:  # noqa: ARG002
+    def is_supported(self, method: str) -> bool:
         """Check if a method is supported.
 
         See the [ropt.plugins.optimizer.base.OptimizerPlugin][] abstract base class.
