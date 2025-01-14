@@ -172,8 +172,7 @@ def test_dakota_failed_realizations(enopt_config: Any, evaluator: Any) -> None:
 
 def test_dakota_user_abort(enopt_config: Any, evaluator: Any) -> None:
     def observer(event: Event) -> None:
-        assert event.results is not None
-        if event.results[0].result_id == 2:
+        if event.data["results"][0].result_id == 2:
             plan.abort_optimization()
 
     plan = BasicOptimizer(enopt_config, evaluator()).add_observer(
@@ -208,8 +207,7 @@ def test_dakota_optimizer_variables_subset(enopt_config: Any, evaluator: Any) ->
     enopt_config["variables"]["indices"] = [0, 2]
 
     def assert_gradient(event: Event) -> None:
-        assert event.results is not None
-        for item in event.results:
+        for item in event.data["results"]:
             if isinstance(item, GradientResults):
                 assert item.gradients is not None
                 assert item.gradients.weighted_objective[1] == 0.0
