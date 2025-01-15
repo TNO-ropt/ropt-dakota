@@ -171,8 +171,12 @@ def test_dakota_failed_realizations(enopt_config: Any, evaluator: Any) -> None:
 
 
 def test_dakota_user_abort(enopt_config: Any, evaluator: Any) -> None:
-    def observer(event: Event) -> None:
-        if event.data["results"][0].result_id == 2:
+    count = 0
+
+    def observer(_: Event) -> None:
+        nonlocal count
+        count += 1
+        if count == 2:
             plan.abort_optimization()
 
     plan = BasicOptimizer(enopt_config, evaluator()).add_observer(
@@ -180,7 +184,7 @@ def test_dakota_user_abort(enopt_config: Any, evaluator: Any) -> None:
     )
     plan.run()
     assert plan.results is not None
-    assert plan.results.result_id == 2
+    assert count == 2
     assert plan.exit_code == OptimizerExitCode.USER_ABORT
 
 
