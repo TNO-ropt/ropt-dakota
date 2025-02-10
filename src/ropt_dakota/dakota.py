@@ -10,16 +10,14 @@ import numpy as np
 from dakota import _USER_DATA, DakotaBase, DakotaInput, run_dakota
 from numpy.typing import NDArray
 from ropt.config.enopt import EnOptConfig, OptimizerConfig
-from ropt.enums import ConstraintType
 from ropt.exceptions import ConfigError
 from ropt.plugins.optimizer.base import Optimizer, OptimizerCallback, OptimizerPlugin
-from ropt.plugins.optimizer.utils import create_output_path, filter_linear_constraints
+from ropt.plugins.optimizer.utils import create_output_path
 
 _PRECISION: Final[int] = 8
-_LARGE_NUMBER_FOR_INF: Final = 1e30
+_INF: Final = 1e30
 
 _ConstraintIndices = tuple[
-    NDArray[np.intc],
     NDArray[np.intc],
     NDArray[np.intc],
 ]
@@ -98,18 +96,27 @@ class DakotaOptimizer(Optimizer):
     def _get_constraint_indices(self) -> _ConstraintIndices | None:
         if self._config.nonlinear_constraints is None:
             return None
-        types = self._config.nonlinear_constraints.types
+        lower_bounds = self._config.nonlinear_constraints.lower_bounds
+        upper_bounds = self._config.nonlinear_constraints.upper_bounds
         return (
             np.fromiter(
-                (idx for idx, type_ in enumerate(types) if type_ == ConstraintType.LE),
+                (
+                    idx
+                    for idx, (lb, ub) in enumerate(
+                        zip(lower_bounds, upper_bounds, strict=True)
+                    )
+                    if abs(ub - lb) > 1e-15  # noqa: PLR2004
+                ),
                 dtype=np.intc,
             ),
             np.fromiter(
-                (idx for idx, type_ in enumerate(types) if type_ == ConstraintType.GE),
-                dtype=np.intc,
-            ),
-            np.fromiter(
-                (idx for idx, type_ in enumerate(types) if type_ == ConstraintType.EQ),
+                (
+                    idx
+                    for idx, (lb, ub) in enumerate(
+                        zip(lower_bounds, upper_bounds, strict=True)
+                    )
+                    if abs(ub - lb) <= 1e-15  # noqa: PLR2004
+                ),
                 dtype=np.intc,
             ),
         )
@@ -185,12 +192,17 @@ class DakotaOptimizer(Optimizer):
         names = tuple(f"variable{idx}" for idx in range(initial_values.size))
         lower_bounds = self._config.variables.lower_bounds
         upper_bounds = self._config.variables.upper_bounds
-        variable_indices = self._config.variables.indices
-        if variable_indices is not None:
-            initial_values = initial_values[variable_indices]
-            names = tuple(names[idx] for idx in variable_indices)
-            lower_bounds = lower_bounds[variable_indices]
-            upper_bounds = upper_bounds[variable_indices]
+        if self._config.variables.mask is not None:
+            initial_values = initial_values[self._config.variables.mask]
+            names = tuple(
+                name
+                for name, enabled in zip(
+                    names, self._config.variables.mask, strict=True
+                )
+                if enabled
+            )
+            lower_bounds = lower_bounds[self._config.variables.mask]
+            upper_bounds = upper_bounds[self._config.variables.mask]
         inputs.append(f"continuous_design = {initial_values.size}")
         inputs.append(
             "initial_point "
@@ -201,18 +213,14 @@ class DakotaOptimizer(Optimizer):
         inputs.append(
             "lower_bounds "
             + " ".join(
-                f"{bound:{_PRECISION}f}"
-                if isfinite(bound)
-                else f"-{_LARGE_NUMBER_FOR_INF}"
+                f"{bound:{_PRECISION}f}" if isfinite(bound) else f"-{_INF}"
                 for bound in lower_bounds
             ),
         )
         inputs.append(
             "upper_bounds "
             + " ".join(
-                f"{bound:{_PRECISION}f}"
-                if isfinite(bound)
-                else f"+{_LARGE_NUMBER_FOR_INF}"
+                f"{bound:{_PRECISION}f}" if isfinite(bound) else f"+{_INF}"
                 for bound in upper_bounds
             ),
         )
@@ -223,80 +231,81 @@ class DakotaOptimizer(Optimizer):
 
     def _get_linear_constraints(
         self,
-    ) -> tuple[NDArray[np.float64], NDArray[np.float64], NDArray[np.ubyte]]:
-        linear_constraints_config = self._config.linear_constraints
-        assert linear_constraints_config is not None
+    ) -> tuple[NDArray[np.float64], NDArray[np.float64], NDArray[np.float64]]:
+        assert self._config.linear_constraints is not None
 
-        if self._config.variables.indices is not None:
-            linear_constraints_config = filter_linear_constraints(
-                linear_constraints_config, self._config.variables.indices
+        coefficients = self._config.linear_constraints.coefficients
+        lower_bounds = self._config.linear_constraints.lower_bounds
+        upper_bounds = self._config.linear_constraints.upper_bounds
+
+        mask = self._config.variables.mask
+        if mask is not None:
+            offsets = np.matmul(
+                coefficients[:, ~mask], self._config.variables.initial_values[~mask]
             )
+            lower_bounds = lower_bounds - offsets
+            upper_bounds = upper_bounds - offsets
+            coefficients = coefficients[:, mask]
 
-        coefficients = linear_constraints_config.coefficients
-        rhs_values = linear_constraints_config.rhs_values
-        types = linear_constraints_config.types
-
-        return coefficients, rhs_values, types
+        return coefficients, lower_bounds, upper_bounds
 
     def _get_linear_constraints_section(self) -> list[str]:
         inputs: list[str] = []
 
         if self._config.linear_constraints is not None:
-            all_coefficients, all_rhs_values, all_types = self._get_linear_constraints()
+            all_coefficients, all_lower_bounds, all_upper_bounds = (
+                self._get_linear_constraints()
+            )
 
-            coefficients = all_coefficients[all_types != ConstraintType.EQ, :]
-            rhs_values = all_rhs_values[all_types != ConstraintType.EQ]
-            rhs_values[rhs_values < -_LARGE_NUMBER_FOR_INF] = -_LARGE_NUMBER_FOR_INF
-            rhs_values[rhs_values > _LARGE_NUMBER_FOR_INF] = _LARGE_NUMBER_FOR_INF
-            types = all_types[all_types != ConstraintType.EQ]
-            if types.size > 0:
-                # Inequality linear constraints are defined as one-sided with a lower
-                # bound. Earlier versions of this driver used upper bounds, and we stick
-                # to that by using the negatives of the matrix and bound values for ge
-                # constraints.
-                coefficients[types == ConstraintType.GE, :] = -coefficients[
-                    types == ConstraintType.GE, :
-                ]
-                rhs_values[types == ConstraintType.GE] = -rhs_values[
-                    types == ConstraintType.GE
-                ]
+            eq_idx = np.abs(all_lower_bounds - all_upper_bounds) <= 1e-15  # noqa: PLR2004
+            ineq_idx = np.logical_not(eq_idx)
+
+            if np.any(ineq_idx):
+                coefficients = all_coefficients[ineq_idx, :]
+                lower_bounds = all_lower_bounds[ineq_idx]
+                upper_bounds = all_upper_bounds[ineq_idx]
+                lower_bounds[all_lower_bounds < -_INF] = -_INF
+                upper_bounds[all_upper_bounds > _INF] = _INF
                 # Add 0.0 to prevent -0.0 values:
                 coefficients += 0.0
-                rhs_values += 0.0
+                lower_bounds += 0.0
+                upper_bounds += 0.0
                 inputs.append(
                     "linear_inequality_constraint_matrix = "
                     + "\n".join(
                         " ".join(
                             f"{value:{_PRECISION}f}" for value in coefficients[idx, :]
                         )
-                        for idx in range(types.size)
+                        for idx in range(lower_bounds.size)
                     ),
                 )
                 inputs.append(
                     "linear_inequality_lower_bounds = "
-                    + " ".join(["-1e+30"] * types.size),
+                    + " ".join(f"{value:{_PRECISION}f}" for value in lower_bounds),
                 )
                 inputs.append(
                     "linear_inequality_upper_bounds = "
-                    + " ".join(f"{value:{_PRECISION}f}" for value in rhs_values),
+                    + " ".join(f"{value:{_PRECISION}f}" for value in upper_bounds),
                 )
 
-            coefficients = all_coefficients[all_types == ConstraintType.EQ, :]
-            rhs_values = all_rhs_values[all_types == ConstraintType.EQ]
-            types = all_types[all_types == ConstraintType.EQ]
-            if types.size > 0:
+            if np.any(eq_idx):
+                coefficients = all_coefficients[eq_idx, :]
+                bounds = all_lower_bounds[eq_idx]
+                # Add 0.0 to prevent -0.0 values:
+                coefficients += 0.0
+                bounds += 0.0
                 inputs.append(
                     "linear_equality_constraint_matrix = "
                     + "\n".join(
                         " ".join(
                             f"{value:{_PRECISION}f}" for value in coefficients[idx, :]
                         )
-                        for idx in range(types.size)
+                        for idx in range(bounds.size)
                     ),
                 )
                 inputs.append(
                     "linear_equality_targets ="
-                    + " ".join(f"{value:{_PRECISION}f}" for value in rhs_values),
+                    + " ".join(f"{value:{_PRECISION}f}" for value in bounds),
                 )
 
         return inputs
@@ -307,20 +316,37 @@ class DakotaOptimizer(Optimizer):
         inputs.append("objective_function_scale_types 'value'")
         inputs.append("objective_function_scales = 1.0")
         if self._constraint_indices is not None:
-            ge_indices, le_indices, eq_indices = self._constraint_indices
-            ineq_count = ge_indices.size + le_indices.size
-            if ineq_count > 0:
-                inputs.append(f"nonlinear_inequality_constraints = {ineq_count} ")
-                inputs.append("nonlinear_inequality_upper_bounds" + " 0.0" * ineq_count)
+            assert self._config.nonlinear_constraints is not None
+            lower_bounds = self._config.nonlinear_constraints.lower_bounds.copy()
+            upper_bounds = self._config.nonlinear_constraints.upper_bounds.copy()
+            lower_bounds[lower_bounds < -_INF] = -_INF
+            upper_bounds[upper_bounds > _INF] = _INF
+            ineq_indices, eq_indices = self._constraint_indices
+            if ineq_indices.size > 0:
+                lower = " ".join(
+                    f"{value:{_PRECISION}f}" for value in lower_bounds[ineq_indices]
+                )
+                upper = " ".join(
+                    f"{value:{_PRECISION}f}" for value in upper_bounds[ineq_indices]
+                )
+                inputs.append(
+                    f"nonlinear_inequality_constraints = {ineq_indices.size} "
+                )
+                inputs.append("nonlinear_inequality_lower_bounds " + lower)
+                inputs.append("nonlinear_inequality_upper_bounds " + upper)
                 inputs.append("nonlinear_inequality_scale_types 'value'")
-                inputs.append("nonlinear_inequality_scales" + " 1.0" * ineq_count)
+                inputs.append(
+                    "nonlinear_inequality_scales" + " 1.0" * ineq_indices.size
+                )
 
-            eq_count = eq_indices.size
-            if eq_count > 0:
-                inputs.append(f"nonlinear_equality_constraints = {eq_count}")
-                inputs.append("nonlinear_equality_targets" + " 0.0" * eq_count)
+            if eq_indices.size > 0:
+                targets = " ".join(
+                    f"{value:{_PRECISION}f}" for value in lower_bounds[eq_indices]
+                )
+                inputs.append(f"nonlinear_equality_constraints = {eq_indices.size}")
+                inputs.append("nonlinear_equality_targets " + targets)
                 inputs.append("nonlinear_equality_scale_types 'value'")
-                inputs.append("nonlinear_equality_scales" + " 1.0" * eq_count)
+                inputs.append("nonlinear_equality_scales" + " 1.0" * eq_indices.size)
         return inputs
 
     def _start(self, initial_values: NDArray[np.float64]) -> None:
@@ -475,8 +501,8 @@ def _compute_response(  # noqa: PLR0913
 
     # Reorder functions and gradients that correspond to nonlinear constraints:
     if constraint_indices is not None:
-        ge_indices, le_indices, eq_indices = constraint_indices
-        indices = np.hstack((0, le_indices + 1, ge_indices + 1, eq_indices + 1))
+        ineq_indices, eq_indices = constraint_indices
+        indices = np.hstack((0, ineq_indices + 1, eq_indices + 1))
         if return_functions:
             functions = functions[indices]
         if compute_gradients:

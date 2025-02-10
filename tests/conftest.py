@@ -18,7 +18,7 @@ def _function_runner(
     constraint_count = (
         0
         if metadata.config.nonlinear_constraints is None
-        else metadata.config.nonlinear_constraints.rhs_values.size
+        else metadata.config.nonlinear_constraints.lower_bounds.size
     )
     objective_results = np.zeros(
         (variables.shape[0], objective_count), dtype=np.float64

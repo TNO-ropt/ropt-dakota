@@ -4,7 +4,7 @@ from typing import Any, cast
 import numpy as np
 import pytest
 from numpy.typing import NDArray
-from ropt.enums import ConstraintType, EventType, OptimizerExitCode
+from ropt.enums import EventType, OptimizerExitCode
 from ropt.plan import BasicOptimizer, Event
 from ropt.results import GradientResults
 
@@ -70,8 +70,8 @@ def test_dakota_bound_constraint(
 def test_dakota_eq_linear_constraint(enopt_config: Any, evaluator: Any) -> None:
     enopt_config["linear_constraints"] = {
         "coefficients": [[1, 0, 1], [0, 1, 1]],
-        "rhs_values": [1.0, 0.75],
-        "types": [ConstraintType.EQ, ConstraintType.EQ],
+        "lower_bounds": [1.0, 0.75],
+        "upper_bounds": [1.0, 0.75],
     }
     variables = BasicOptimizer(enopt_config, evaluator()).run().variables
     assert variables is not None
@@ -81,8 +81,8 @@ def test_dakota_eq_linear_constraint(enopt_config: Any, evaluator: Any) -> None:
 def test_dakota_ge_linear_constraint(enopt_config: Any, evaluator: Any) -> None:
     enopt_config["linear_constraints"] = {
         "coefficients": [[-1, 0, -1]],
-        "rhs_values": -0.4,
-        "types": [ConstraintType.GE],
+        "lower_bounds": -0.4,
+        "upper_bounds": np.inf,
     }
     variables = BasicOptimizer(enopt_config, evaluator()).run().variables
     assert variables is not None
@@ -92,8 +92,8 @@ def test_dakota_ge_linear_constraint(enopt_config: Any, evaluator: Any) -> None:
 def test_dakota_le_linear_constraint(enopt_config: Any, evaluator: Any) -> None:
     enopt_config["linear_constraints"] = {
         "coefficients": [[1, 0, 1]],
-        "rhs_values": 0.4,
-        "types": [ConstraintType.LE],
+        "lower_bounds": -np.inf,
+        "upper_bounds": 0.4,
     }
     variables = BasicOptimizer(enopt_config, evaluator()).run().variables
     assert variables is not None
@@ -103,20 +103,54 @@ def test_dakota_le_linear_constraint(enopt_config: Any, evaluator: Any) -> None:
 def test_dakota_le_ge_linear_constraints(enopt_config: Any, evaluator: Any) -> None:
     enopt_config["linear_constraints"] = {
         "coefficients": [[1, 0, 1], [-1, 0, -1]],
-        "rhs_values": [0.4, -0.4],
-        "types": [ConstraintType.LE, ConstraintType.GE],
+        "lower_bounds": [-np.inf, -0.4],
+        "upper_bounds": [0.4, np.inf],
     }
     variables = BasicOptimizer(enopt_config, evaluator()).run().variables
     assert variables is not None
     assert np.allclose(variables, [-0.05, 0.0, 0.45], atol=0.02)
 
 
+def test_dakota_le_ge_linear_constraints_two_sided(
+    enopt_config: Any, evaluator: Any
+) -> None:
+    enopt_config["linear_constraints"] = {
+        "coefficients": [[1, 0, 1], [1, 0, 1]],
+        "lower_bounds": [-np.inf, 0.0],
+        "upper_bounds": [0.3, np.inf],
+    }
+
+    variables = BasicOptimizer(enopt_config, evaluator()).run().variables
+    assert variables is not None
+    assert np.allclose(variables, [-0.1, 0.0, 0.4], atol=0.02)
+
+    enopt_config["linear_constraints"] = {
+        "coefficients": [[1, 0, 1]],
+        "lower_bounds": [0.0],
+        "upper_bounds": [0.3],
+    }
+
+    variables = BasicOptimizer(enopt_config, evaluator()).run().variables
+    assert variables is not None
+    assert np.allclose(variables, [-0.1, 0.0, 0.4], atol=0.02)
+
+    enopt_config["linear_constraints"] = {
+        "coefficients": [[1, 0, 1]],
+        "lower_bounds": [0.3],
+        "upper_bounds": [0.0],
+    }
+
+    variables = BasicOptimizer(enopt_config, evaluator()).run().variables
+    assert variables is not None
+    assert np.allclose(variables, [-0.1, 0.0, 0.4], atol=0.02)
+
+
 def test_dakota_eq_nonlinear_constraint(
     enopt_config: Any, evaluator: Any, test_functions: Any
 ) -> None:
     enopt_config["nonlinear_constraints"] = {
-        "rhs_values": 1.0,
-        "types": [ConstraintType.EQ],
+        "lower_bounds": 1.0,
+        "upper_bounds": 1.0,
     }
     test_functions = (
         *test_functions,
@@ -127,18 +161,21 @@ def test_dakota_eq_nonlinear_constraint(
     assert np.allclose(variables, [0.25, 0.0, 0.75], atol=0.02)
 
 
-@pytest.mark.parametrize("bound_type", [ConstraintType.LE, ConstraintType.GE])
+@pytest.mark.parametrize(
+    ("lower_bounds", "upper_bounds"), [(-np.inf, 0.4), (-0.4, np.inf)]
+)
 def test_dakota_ineq_nonlinear_constraint(
     enopt_config: Any,
-    bound_type: ConstraintType,
+    lower_bounds: Any,
+    upper_bounds: Any,
     evaluator: Any,
     test_functions: Any,
 ) -> None:
     enopt_config["nonlinear_constraints"] = {
-        "rhs_values": 0.4 if bound_type == ConstraintType.LE else -0.4,
-        "types": [bound_type],
+        "lower_bounds": lower_bounds,
+        "upper_bounds": upper_bounds,
     }
-    weight = 1.0 if bound_type == ConstraintType.LE else -1.0
+    weight = 1.0 if upper_bounds == 0.4 else -1.0
     test_functions = (
         *test_functions,
         lambda variables: cast(
@@ -148,6 +185,27 @@ def test_dakota_ineq_nonlinear_constraint(
     variables = BasicOptimizer(enopt_config, evaluator(test_functions)).run().variables
     assert variables is not None
     assert np.allclose(variables, [-0.05, 0.0, 0.45], atol=0.02)
+
+
+def test_dakota_ineq_nonlinear_constraints_two_sided(
+    enopt_config: Any,
+    evaluator: Any,
+    test_functions: Any,
+) -> None:
+    enopt_config["variables"]["lower_bounds"] = [-1.0, -1.0, -1.0]
+    enopt_config["variables"]["upper_bounds"] = [1.0, 1.0, 1.0]
+    enopt_config["nonlinear_constraints"] = {
+        "lower_bounds": [0.0],
+        "upper_bounds": [0.3],
+    }
+    test_functions = (
+        *test_functions,
+        lambda variables: cast(NDArray[np.float64], variables[0] + variables[2]),
+    )
+
+    variables = BasicOptimizer(enopt_config, evaluator(test_functions)).run().variables
+    assert variables is not None
+    assert np.allclose(variables, [-0.1, 0.0, 0.4], atol=0.02)
 
 
 def test_dakota_failed_realizations(enopt_config: Any, evaluator: Any) -> None:
@@ -208,7 +266,7 @@ def test_dakota_optimizer_variables_subset(enopt_config: Any, evaluator: Any) ->
 
     # Fix the second variables, the test function still has the same optimal
     # values for the other parameters:
-    enopt_config["variables"]["indices"] = [0, 2]
+    enopt_config["variables"]["mask"] = [True, False, True]
 
     def assert_gradient(event: Event) -> None:
         for item in event.data["results"]:
@@ -237,10 +295,10 @@ def test_dakota_optimizer_variables_subset_linear_constraints(
     # variables that are not optimized. They are still checked by the monitor:
     enopt_config["linear_constraints"] = {
         "coefficients": [[1, 0, 1], [0, 1, 0], [1, 1, 1]],
-        "rhs_values": [1.0, 1.0, 2.0],
-        "types": [ConstraintType.EQ, ConstraintType.EQ, ConstraintType.EQ],
+        "lower_bounds": [1.0, 1.0, 2.0],
+        "upper_bounds": [1.0, 1.0, 2.0],
     }
-    enopt_config["variables"]["indices"] = [0, 2]
+    enopt_config["variables"]["mask"] = [True, False, True]
     variables = BasicOptimizer(enopt_config, evaluator()).run().variables
     assert variables is not None
     assert np.allclose(variables, [0.25, 1.0, 0.75], atol=0.02)
