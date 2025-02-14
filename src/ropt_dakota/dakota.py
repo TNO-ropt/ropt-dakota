@@ -12,7 +12,10 @@ from numpy.typing import NDArray
 from ropt.config.enopt import EnOptConfig, OptimizerConfig
 from ropt.exceptions import ConfigError
 from ropt.plugins.optimizer.base import Optimizer, OptimizerCallback, OptimizerPlugin
-from ropt.plugins.optimizer.utils import create_output_path
+from ropt.plugins.optimizer.utils import (
+    create_output_path,
+    get_masked_linear_constraints,
+)
 
 _PRECISION: Final[int] = 8
 _INF: Final = 1e30
@@ -229,32 +232,12 @@ class DakotaOptimizer(Optimizer):
         )
         return inputs
 
-    def _get_linear_constraints(
-        self,
-    ) -> tuple[NDArray[np.float64], NDArray[np.float64], NDArray[np.float64]]:
-        assert self._config.linear_constraints is not None
-
-        coefficients = self._config.linear_constraints.coefficients
-        lower_bounds = self._config.linear_constraints.lower_bounds
-        upper_bounds = self._config.linear_constraints.upper_bounds
-
-        mask = self._config.variables.mask
-        if mask is not None:
-            offsets = np.matmul(
-                coefficients[:, ~mask], self._config.variables.initial_values[~mask]
-            )
-            lower_bounds = lower_bounds - offsets
-            upper_bounds = upper_bounds - offsets
-            coefficients = coefficients[:, mask]
-
-        return coefficients, lower_bounds, upper_bounds
-
     def _get_linear_constraints_section(self) -> list[str]:
         inputs: list[str] = []
 
         if self._config.linear_constraints is not None:
             all_coefficients, all_lower_bounds, all_upper_bounds = (
-                self._get_linear_constraints()
+                get_masked_linear_constraints(self._config)
             )
 
             eq_idx = np.abs(all_lower_bounds - all_upper_bounds) <= 1e-15  # noqa: PLR2004
