@@ -219,21 +219,21 @@ def test_dakota_failed_realizations(enopt_config: Any, evaluator: Any) -> None:
 
 
 def test_dakota_user_abort(enopt_config: Any, evaluator: Any) -> None:
-    count = 0
+    last_evaluation = 0
 
-    def observer(_: Event) -> None:
-        nonlocal count
-        count += 1
-        if count == 2:
-            plan.abort_optimization()
+    def _abort() -> bool:
+        nonlocal last_evaluation
 
-    plan = BasicOptimizer(enopt_config, evaluator()).add_observer(
-        EventType.FINISHED_EVALUATION, observer
-    )
-    plan.run()
-    assert plan.results is not None
-    assert count == 2
-    assert plan.exit_code == OptimizerExitCode.USER_ABORT
+        if last_evaluation == 2:
+            return True
+        last_evaluation += 1
+        return False
+
+    optimizer = BasicOptimizer(enopt_config, evaluator()).set_abort_callback(_abort)
+    optimizer.run()
+    assert optimizer.results is not None
+    assert last_evaluation == 2
+    assert optimizer.exit_code == OptimizerExitCode.USER_ABORT
 
 
 def test_dakota_split_evaluations(enopt_config: Any, evaluator: Any) -> None:
