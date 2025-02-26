@@ -42,6 +42,7 @@ write_to = "src/ropt_dakota/version.py"
 filterwarnings = [
     "error",
     'ignore:.*Pydantic will allow any object with no validation.*:UserWarning', # 3.8
+    'ignore:numpy.ndarray size changed, may indicate binary incompatibility.*:RuntimeWarning',
 ]
 
 [tool.ruff.format]
