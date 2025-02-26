@@ -4,9 +4,9 @@ from typing import Any, cast
 import numpy as np
 import pytest
 from numpy.typing import NDArray
-from ropt.enums import EventType, OptimizerExitCode
-from ropt.plan import BasicOptimizer, Event
-from ropt.results import GradientResults
+from ropt.enums import OptimizerExitCode
+from ropt.plan import BasicOptimizer
+from ropt.results import GradientResults, Results
 
 from ropt_dakota.dakota import _SUPPORTED_METHODS
 
@@ -258,8 +258,8 @@ def test_dakota_optimizer_variables_subset(enopt_config: Any, evaluator: Any) ->
     # values for the other parameters:
     enopt_config["variables"]["mask"] = [True, False, True]
 
-    def assert_gradient(event: Event) -> None:
-        for item in event.data["results"]:
+    def assert_gradient(results: tuple[Results, ...]) -> None:
+        for item in results:
             if isinstance(item, GradientResults):
                 assert item.gradients is not None
                 assert item.gradients.weighted_objective[1] == 0.0
@@ -267,7 +267,7 @@ def test_dakota_optimizer_variables_subset(enopt_config: Any, evaluator: Any) ->
 
     variables = (
         BasicOptimizer(enopt_config, evaluator())
-        .add_observer(EventType.FINISHED_EVALUATION, assert_gradient)
+        .set_results_callback(assert_gradient)
         .run()
         .variables
     )
