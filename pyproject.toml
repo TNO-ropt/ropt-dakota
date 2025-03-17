@@ -16,7 +16,7 @@ classifiers = [
 ]
 requires-python = ">=3.11"
 dynamic = ["version"]
-dependencies = ["numpy<2", "carolina"]
+dependencies = ["numpy", "carolina"]
 
 [project.urls]
 "Homepage" = "https://github.com/TNO-ropt/ropt-dakota"
