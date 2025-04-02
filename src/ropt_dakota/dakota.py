@@ -496,8 +496,9 @@ def _compute_response(  # noqa: PLR0913
 class DakotaOptimizerPlugin(OptimizerPlugin):
     """Plugin class for optimization via Dakota."""
 
+    @classmethod
     def create(
-        self, config: EnOptConfig, optimizer_callback: OptimizerCallback
+        cls, config: EnOptConfig, optimizer_callback: OptimizerCallback
     ) -> DakotaOptimizer:
         """Initialize the optimizer plugin.
 
@@ -507,7 +508,8 @@ class DakotaOptimizerPlugin(OptimizerPlugin):
         """
         return DakotaOptimizer(config, optimizer_callback)
 
-    def is_supported(self, method: str) -> bool:
+    @classmethod
+    def is_supported(cls, method: str) -> bool:
         """Check if a method is supported.
 
         See the [ropt.plugins.optimizer.base.OptimizerPlugin][] abstract base class.
