@@ -1,15 +1,17 @@
 """This module implements the Dakota optimization plugin."""
 
+import re
 from math import isfinite
 from os import chdir
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Any, Final
+from typing import Any, Final, Literal
 
 import numpy as np
 from dakota import _USER_DATA, DakotaBase, DakotaInput, run_dakota
 from numpy.typing import NDArray
 from ropt.config.enopt import EnOptConfig, OptimizerConfig
+from ropt.config.options import OptionsSchemaModel
 from ropt.exceptions import ConfigError
 from ropt.plugins.optimizer.base import Optimizer, OptimizerCallback, OptimizerPlugin
 from ropt.plugins.optimizer.utils import (
@@ -517,3 +519,212 @@ class DakotaOptimizerPlugin(OptimizerPlugin):
         # noqa
         """
         return method.lower() in (_SUPPORTED_METHODS | {"default"})
+
+    @classmethod
+    def validate_options(
+        cls, method: str, options: dict[str, Any] | list[str] | None
+    ) -> None:
+        """Validate the options of a given method.
+
+        See the [ropt.plugins.optimizer.base.OptimizerPlugin][] abstract base class.
+
+        # noqa
+        """
+        if options is not None:
+            if isinstance(options, dict):
+                msg = "Dakota optimizer options must be a list of strings"
+                raise TypeError(msg)
+            options_dict: dict[str, Any] = {}
+            for option in options:
+                split_option = re.split(r"\s*=\s*|\s+", option.strip(), maxsplit=1)
+                options_dict[split_option[0]] = (
+                    split_option[1]
+                    if len(split_option) > 1 and split_option[1].strip()
+                    else True
+                )
+            OptionsSchemaModel.model_validate(_OPTIONS_SCHEMA).get_options_model(
+                method
+            ).model_validate(options_dict)
+
+
+_OPTIONS_SCHEMA: dict[str, Any] = {
+    "url": "https://dakota.sandia.gov/",
+    "methods": {
+        "optpp_q_newton": {
+            "options": {
+                "search_method": Literal[
+                    "value_based_line_search",
+                    "gradient_based_line_search",
+                    "trust_region",
+                    "tr_pds",
+                ],
+                "merit_function": Literal["el_bakry", "argaez_tapia", "van_shanno"],
+                "steplength_to_boundary": float,
+                "centering_parameter": float,
+                "max_step": float,
+                "gradient_tolerance": float,
+                "max_iterations": int,
+                "convergence_tolerance": float,
+                "max_function_evaluations": int,
+            },
+            "url": "https://snl-dakota.github.io/docs/6.21.0/users/usingdakota/reference/method-optpp_q_newton.html",
+        },
+        "conmin_mfd": {
+            "options": {
+                "max_iterations": int,
+                "convergence_tolerance": float,
+                "constraint_tolerance": float,
+                "max_function_evaluations": int,
+            },
+            "url": "https://snl-dakota.github.io/docs/6.21.0/users/usingdakota/reference/method-conmin_mfd.html",
+        },
+        "conmin_frcg": {
+            "options": {
+                "max_iterations": int,
+                "convergence_tolerance": float,
+                "constraint_tolerance": float,
+                "max_function_evaluations": int,
+            },
+            "url": "https://snl-dakota.github.io/docs/6.21.0/users/usingdakota/reference/method-conmin_frcg.html",
+        },
+        "mesh_adaptive_search": {
+            "options": {
+                "initial_delta": float,
+                "variable_tolerance": float,
+                "function_precision": float,
+                "seed": int,
+                "history_file": str,
+                "display_format": str,
+                "variable_neighborhood_search": float,
+                "neighbor_order": int,
+                "display_all_evaluations": bool,
+                "use_surrogate": Literal["inform_search", "optimize"],
+                "max_iterations": int,
+                "max_function_evaluations": int,
+            },
+            "url": "https://snl-dakota.github.io/docs/6.21.0/users/usingdakota/reference/method-mesh_adaptive_search.html",
+        },
+        "coliny_ea": {
+            "options": {
+                "population_size": int,
+                "initialization_type": Literal["simple_random", "unique_random"],
+                "fitness_type": Literal["linear_rank", "merit_function"],
+                "replacement_type": Literal[
+                    "random", "chc", "elitist", "new_solutions_generated"
+                ],
+                "crossover_rate": float,
+                "crossover_type": Literal["two_point", "blend", "uniform"],
+                "mutation_rate": float,
+                "mutation_type": Literal[
+                    "replace_uniform",
+                    "offset_normal",
+                    "offset_cauchy",
+                    "offset_uniform",
+                    "non_adaptive",
+                ],
+                "constraint_penalty": float,
+                "solution_target": float,
+                "seed": int,
+                "show_misc_options": str,
+                "misc_options": None,
+                "max_iterations": str,
+                "convergence_tolerance": float,
+                "max_function_evaluations": int,
+            },
+            "url": "https://snl-dakota.github.io/docs/6.21.0/users/usingdakota/reference/method-coliny_ea.html",
+        },
+        "soga": {
+            "options": {
+                "fitness_type": Literal["merit_function", "constraint_penalty"],
+                "replacement_type": Literal[
+                    "elitist",
+                    "favor_feasible",
+                    "roulette_wheel",
+                    "unique_roulette_wheel",
+                ],
+                "convergence_type": Literal[
+                    "best_fitness_tracker", "average_fitness_tracker"
+                ],
+                "max_iterations": int,
+                "max_function_evaluations": int,
+                "population_size": int,
+                "print_each_pop": bool,
+                "initialization_type": Literal["simple_random", "unique_random"],
+                "crossover_type": Literal[
+                    "multi_point_binary",
+                    "multi_point_parameterized_binary",
+                    "multi_point_real",
+                    "shuffle_random",
+                ],
+                "mutation_type": Literal[
+                    "bit_random",
+                    "replace_uniform",
+                    "offset_normal",
+                    "offset_cauchy",
+                    "offset_uniform",
+                ],
+                "seed": int,
+                "convergence_tolerance": float,
+            },
+            "url": "https://snl-dakota.github.io/docs/6.21.0/users/usingdakota/reference/method-soga.html",
+        },
+        "moga": {
+            "options": {
+                "fitness_type": Literal["layer_rank", "domination_count"],
+                "replacement_type": Literal[
+                    "elitist", "roulette_wheel", "unique_roulette_wheel", "below_limit"
+                ],
+                "niching_type": Literal["radial,distance", "max_designs"],
+                "convergence_type": Literal[
+                    "metric_tracker", "percent_change", "num_generations"
+                ],
+                "postprocessor_type": Literal["orthogonal_distance"],
+                "max_iterations": int,
+                "max_function_evaluations": int,
+                "population_size": int,
+                "print_each_pop": bool,
+                "initialization_type": Literal[
+                    "simple_random", "unique_random", "flat_file"
+                ],
+                "crossover_type": Literal[
+                    "multi_point_binary",
+                    "multi_point_parameterized_binary",
+                    "multi_point_real",
+                    "shuffle_random",
+                ],
+                "mutation_type": Literal[
+                    "bit_random",
+                    "replace_uniform",
+                    "offset_normal",
+                    "offset_cauchy",
+                    "offset_uniform",
+                ],
+                "seed": int,
+                "convergence_tolerance": float,
+            },
+            "url": "https://snl-dakota.github.io/docs/6.21.0/users/usingdakota/reference/method-moga.html",
+        },
+        "asynch_pattern_search": {
+            "options": {
+                "initial_delta": float,
+                "contraction_factor": float,
+                "variable_tolerance": float,
+                "solution_target": float,
+                "merit_function": Literal[
+                    "merit_max",
+                    "merit_max_smooth",
+                    "merit1",
+                    "merit1_smooth",
+                    "merit2",
+                    "merit2_smooth",
+                    "merit2_squared",
+                ],
+                "constraint_penalty": float,
+                "smoothing_factor": float,
+                "constraint_tolerance": float,
+                "max_function_evaluations": int,
+            },
+            "url": "https://snl-dakota.github.io/docs/6.21.0/users/usingdakota/reference/method-asynch_pattern_search.html",
+        },
+    },
+}
