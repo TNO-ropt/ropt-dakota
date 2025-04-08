@@ -673,6 +673,7 @@ _OPTIONS_SCHEMA: dict[str, Any] = {
                     "multi_point_real",
                     "shuffle_random",
                 ],
+                "crossover_rate": float,
                 "mutation_type": Literal[
                     "bit_random",
                     "replace_uniform",
@@ -680,6 +681,7 @@ _OPTIONS_SCHEMA: dict[str, Any] = {
                     "offset_cauchy",
                     "offset_uniform",
                 ],
+                "mutation_rate": float,
                 "seed": int,
                 "convergence_tolerance": float,
             },
@@ -709,6 +711,7 @@ _OPTIONS_SCHEMA: dict[str, Any] = {
                     "multi_point_real",
                     "shuffle_random",
                 ],
+                "crossover_rate": float,
                 "mutation_type": Literal[
                     "bit_random",
                     "replace_uniform",
@@ -716,6 +719,7 @@ _OPTIONS_SCHEMA: dict[str, Any] = {
                     "offset_cauchy",
                     "offset_uniform",
                 ],
+                "mutation_rate": float,
                 "seed": int,
                 "convergence_tolerance": float,
             },
