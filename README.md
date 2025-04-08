@@ -7,6 +7,10 @@ providing access to algorithms from the Dakota optimization package.
 Scientific Research (TNO). All files in this repository are released under the
 GNU General Public License v3.0 (a copy is provided in the LICENSE file).
 
+See also the online [`ropt`](https://tno-ropt.github.io/ropt/) and
+[`ropt-dakota`](https://tno-ropt.github.io/ropt-dakota/) manuals for more
+information.
+
 
 ## Dependencies
 This code has been tested with Python version 3.11.
