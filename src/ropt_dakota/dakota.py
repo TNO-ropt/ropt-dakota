@@ -40,7 +40,25 @@ _SUPPORTED_METHODS: Final = {
 
 
 class DakotaOptimizer(Optimizer):
-    """Plugin class for optimization via Dakota."""
+    """Dakota optimization backend for ropt.
+
+    This class provides an interface to several optimization algorithms from
+    [`Dakota`](https://snl-dakota.github.io/), enabling their use within `ropt`.
+
+    To select an optimizer, set the `method` field within the
+    [`optimizer`][ropt.config.enopt.OptimizerConfig] section of the
+    [`EnOptConfig`][ropt.config.enopt.EnOptConfig] configuration object to the
+    desired algorithm's name. Most methods support the general options defined
+    in the [`EnOptConfig`][ropt.config.enopt.EnOptConfig] object. For
+    algorithm-specific options, use the `options` dictionary within the
+    [`optimizer`][ropt.config.enopt.OptimizerConfig] section.
+
+    The table below lists the included methods together with the method-specific
+    options that are supported. Click on the method name to consult the
+    corresponding [`Dakota`](https://snl-dakota.github.io/) documentation:
+
+    --8<-- "dakota.md"
+    """
 
     def __init__(
         self, config: EnOptConfig, optimizer_callback: OptimizerCallback
@@ -548,7 +566,6 @@ class DakotaOptimizerPlugin(OptimizerPlugin):
 
 
 _OPTIONS_SCHEMA: dict[str, Any] = {
-    "url": "https://dakota.sandia.gov/",
     "methods": {
         "optpp_q_newton": {
             "options": {
@@ -728,3 +745,9 @@ _OPTIONS_SCHEMA: dict[str, Any] = {
         },
     },
 }
+
+if __name__ == "__main__":
+    from ropt.config.options import gen_options_table
+
+    with Path("dakota.md").open("w", encoding="utf-8") as fp:
+        fp.write(gen_options_table(_OPTIONS_SCHEMA))

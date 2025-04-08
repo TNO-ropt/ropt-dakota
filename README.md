@@ -1,5 +1,6 @@
 # A Dakota optimizer plugin for `ropt`
-This package installs a plugin for the `ropt` robust optimization package,
+This package installs a plugin for the
+[`ropt`](https://github.com/TNO-ropt/ropt) robust optimization package,
 providing access to algorithms from the Dakota optimization package.
 
 `ropt-dakota` is developed by the Netherlands Organisation for Applied

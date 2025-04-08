@@ -1,0 +1,84 @@
+site_name: ropt-dakota Documentation
+
+theme:
+  name: material
+  features:
+    - navigation.top
+    - navigation.expand
+    - content.code.copy
+    - content.code.annotate
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      primary: indigo
+      accent: blue
+      scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      primary: teal
+      accent: lime
+      scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+plugins:
+  - search
+  - mike
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          paths: [src, examples]
+          options:
+            show_source: false
+            show_bases: true
+            show_root_toc_entry: false
+            show_root_heading: true
+            show_root_full_path: true
+            show_root_members_full_path: false
+            heading_level: 2
+            members_order: source
+            show_symbol_type_heading: true
+            separate_signature: true
+            show_signature_annotations: True
+          inventories:
+            - https://docs.python.org/3/objects.inv
+            - https://docs.pydantic.dev/latest/objects.inv
+            - https://tno-ropt.github.io/ropt/latest/objects.inv
+
+markdown_extensions:
+  - admonition
+  - def_list
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+  - pymdownx.snippets:
+      base_path: ["docs/snippets"]
+
+extra_css:
+  - stylesheets/extra.css
+
+extra_javascript:
+  - javascripts/mathjax.js
+  - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
+
+extra:
+  version:
+    provider: mike
+  generator: false
+
+watch:
+  - src
+
+repo_url: https://github.com/TNO-ropt/ropt-dakota
+
+exclude_docs: |
+  /snippets/
