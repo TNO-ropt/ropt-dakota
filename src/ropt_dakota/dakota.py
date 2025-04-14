@@ -180,13 +180,7 @@ class DakotaOptimizer(Optimizer):
                 else "convergence_tolerance"
             )
             inputs.append(f"{tolerance_option} = {convergence_tolerance}")
-        # The Dakota interface seems not be able to deal with with speculative
-        # and split_evaluations simultaneously. Do not enable speculative if
-        # split_evaluations is defined.
-        if (
-            self._config.optimizer.speculative
-            and not self._config.optimizer.split_evaluations
-        ):
+        if self._config.gradient.evaluation_policy == "speculative":
             inputs.append("speculative")
         # Options are put in the method section:
         return inputs + self._get_options(self._method)
@@ -367,6 +361,7 @@ class DakotaOptimizer(Optimizer):
     def _start_direct_interface(self, initial_values: NDArray[np.float64]) -> None:
         driver = _DakotaDriver(
             self._config.optimizer,
+            self._config.gradient.evaluation_policy,
             self._optimizer_callback,
             self._constraint_indices,
             self._get_inputs(initial_values),
@@ -388,13 +383,14 @@ class _DakotaDriver(DakotaBase):
     def __init__(
         self,
         optimizer_config: OptimizerConfig,
+        evaluation_policy: str,
         optimizer_callback: OptimizerCallback,
         constraint_indices: _ConstraintIndices | None,
         inputs: dict[str, list[str]],
     ) -> None:
         self._optimizer_config = optimizer_config
         self._optimizer_callback = optimizer_callback
-        self._split_evaluations = optimizer_config.split_evaluations
+        self._separate_evaluations = evaluation_policy == "separate"
         self._constraint_indices = constraint_indices
         self.exception: Exception | None = None
         super().__init__(DakotaInput(**inputs))
@@ -418,7 +414,7 @@ class _DakotaDriver(DakotaBase):
                 self._optimizer_callback,
                 return_functions=return_functions,
                 compute_gradients=compute_gradients,
-                split_evaluations=self._split_evaluations,
+                separate_evaluations=self._separate_evaluations,
             )
         except Exception as err:
             self.exception = err
@@ -486,9 +482,9 @@ def _compute_response(  # noqa: PLR0913
     *,
     return_functions: bool,
     compute_gradients: bool,
-    split_evaluations: bool,
+    separate_evaluations: bool,
 ) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
-    if return_functions and compute_gradients and split_evaluations:
+    if return_functions and compute_gradients and separate_evaluations:
         functions, _ = optimizer_callback(
             variables, return_functions=True, return_gradients=False
         )

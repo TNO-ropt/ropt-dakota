@@ -272,14 +272,13 @@ def test_dakota_user_abort(enopt_config: Any, evaluator: Any) -> None:
     assert optimizer.exit_code == OptimizerExitCode.USER_ABORT
 
 
-def test_dakota_split_evaluations(enopt_config: Any, evaluator: Any) -> None:
-    enopt_config["optimizer"]["split_evaluations"] = True
+def test_dakota_evaluation_policy_separate(enopt_config: Any, evaluator: Any) -> None:
+    enopt_config["gradient"]["evaluation_policy"] = "separate"
     variables = BasicOptimizer(enopt_config, evaluator()).run().variables
     assert variables is not None
     assert np.allclose(variables, [0.0, 0.0, 0.5], atol=0.02)
 
-    enopt_config["optimizer"]["split_evaluations"] = True
-    enopt_config["optimizer"]["speculative"] = True
+    enopt_config["gradient"]["evaluation_policy"] = "separate"
     variables = BasicOptimizer(enopt_config, evaluator()).run().variables
     assert variables is not None
     assert np.allclose(variables, [0.0, 0.0, 0.5], atol=0.02)
