@@ -15,6 +15,7 @@ from ropt.config.options import OptionsSchemaModel
 from ropt.exceptions import ConfigError
 from ropt.plugins.optimizer.base import Optimizer, OptimizerCallback, OptimizerPlugin
 from ropt.plugins.optimizer.utils import (
+    NormalizedConstraints,
     create_output_path,
     get_masked_linear_constraints,
 )
@@ -22,10 +23,6 @@ from ropt.plugins.optimizer.utils import (
 _PRECISION: Final[int] = 8
 _INF: Final = 1e30
 
-_ConstraintIndices = tuple[
-    NDArray[np.intc],
-    NDArray[np.intc],
-]
 
 _SUPPORTED_METHODS: Final = {
     "optpp_q_newton",
@@ -71,7 +68,14 @@ class DakotaOptimizer(Optimizer):
         """
         self._config = config
         self._optimizer_callback = optimizer_callback
-        self._constraint_indices = self._get_constraint_indices()
+        self._normalized_constraints = (
+            NormalizedConstraints(
+                self._config.nonlinear_constraints.lower_bounds,
+                self._config.nonlinear_constraints.upper_bounds,
+            )
+            if self._config.nonlinear_constraints is not None
+            else None
+        )
         self._output_dir: Path
 
         _, _, self._method = self._config.optimizer.method.lower().rpartition("/")
@@ -115,34 +119,6 @@ class DakotaOptimizer(Optimizer):
         # noqa
         """
         return False
-
-    def _get_constraint_indices(self) -> _ConstraintIndices | None:
-        if self._config.nonlinear_constraints is None:
-            return None
-        lower_bounds = self._config.nonlinear_constraints.lower_bounds
-        upper_bounds = self._config.nonlinear_constraints.upper_bounds
-        return (
-            np.fromiter(
-                (
-                    idx
-                    for idx, (lb, ub) in enumerate(
-                        zip(lower_bounds, upper_bounds, strict=True)
-                    )
-                    if abs(ub - lb) > 1e-15  # noqa: PLR2004
-                ),
-                dtype=np.intc,
-            ),
-            np.fromiter(
-                (
-                    idx
-                    for idx, (lb, ub) in enumerate(
-                        zip(lower_bounds, upper_bounds, strict=True)
-                    )
-                    if abs(ub - lb) <= 1e-15  # noqa: PLR2004
-                ),
-                dtype=np.intc,
-            ),
-        )
 
     def _get_inputs(self, initial_values: NDArray[np.float64]) -> dict[str, list[str]]:
         return {
@@ -309,41 +285,26 @@ class DakotaOptimizer(Optimizer):
 
     def _get_responses_section(self) -> list[str]:
         inputs: list[str] = []
-        # ropt currently only allows for a single objective function
         inputs.append("objective_function_scale_types 'value'")
         inputs.append("objective_function_scales = 1.0")
-        if self._constraint_indices is not None:
-            assert self._config.nonlinear_constraints is not None
-            lower_bounds = self._config.nonlinear_constraints.lower_bounds.copy()
-            upper_bounds = self._config.nonlinear_constraints.upper_bounds.copy()
-            lower_bounds[lower_bounds < -_INF] = -_INF
-            upper_bounds[upper_bounds > _INF] = _INF
-            ineq_indices, eq_indices = self._constraint_indices
-            if ineq_indices.size > 0:
-                lower = " ".join(
-                    f"{value:{_PRECISION}f}" for value in lower_bounds[ineq_indices]
-                )
-                upper = " ".join(
-                    f"{value:{_PRECISION}f}" for value in upper_bounds[ineq_indices]
+        if self._normalized_constraints is not None:
+            ineq = self._normalized_constraints.is_eq.count(False)
+            if ineq > 0:
+                inputs.append(f"nonlinear_inequality_constraints = {ineq} ")
+                inputs.append(
+                    "nonlinear_inequality_lower_bounds " + " ".join(["0.0"] * ineq)
                 )
                 inputs.append(
-                    f"nonlinear_inequality_constraints = {ineq_indices.size} "
+                    "nonlinear_inequality_upper_bounds " + " ".join([f"{_INF}"] * ineq)
                 )
-                inputs.append("nonlinear_inequality_lower_bounds " + lower)
-                inputs.append("nonlinear_inequality_upper_bounds " + upper)
                 inputs.append("nonlinear_inequality_scale_types 'value'")
-                inputs.append(
-                    "nonlinear_inequality_scales" + " 1.0" * ineq_indices.size
-                )
-
-            if eq_indices.size > 0:
-                targets = " ".join(
-                    f"{value:{_PRECISION}f}" for value in lower_bounds[eq_indices]
-                )
-                inputs.append(f"nonlinear_equality_constraints = {eq_indices.size}")
-                inputs.append("nonlinear_equality_targets " + targets)
+                inputs.append("nonlinear_inequality_scales" + " 1.0" * ineq)
+            eq = self._normalized_constraints.is_eq.count(True)
+            if eq > 0:
+                inputs.append(f"nonlinear_equality_constraints = {eq}")
+                inputs.append("nonlinear_equality_targets " + " ".join(["0.0"] * eq))
                 inputs.append("nonlinear_equality_scale_types 'value'")
-                inputs.append("nonlinear_equality_scales" + " 1.0" * eq_indices.size)
+                inputs.append("nonlinear_equality_scales" + " 1.0" * eq)
         return inputs
 
     def _start(self, initial_values: NDArray[np.float64]) -> None:
@@ -363,7 +324,7 @@ class DakotaOptimizer(Optimizer):
             self._config.optimizer,
             self._config.gradient.evaluation_policy,
             self._optimizer_callback,
-            self._constraint_indices,
+            self._normalized_constraints,
             self._get_inputs(initial_values),
         )
         try:
@@ -385,13 +346,13 @@ class _DakotaDriver(DakotaBase):
         optimizer_config: OptimizerConfig,
         evaluation_policy: str,
         optimizer_callback: OptimizerCallback,
-        constraint_indices: _ConstraintIndices | None,
+        normalized_constraints: NormalizedConstraints | None,
         inputs: dict[str, list[str]],
     ) -> None:
         self._optimizer_config = optimizer_config
         self._optimizer_callback = optimizer_callback
         self._separate_evaluations = evaluation_policy == "separate"
-        self._constraint_indices = constraint_indices
+        self._normalized_constraints = normalized_constraints
         self.exception: Exception | None = None
         super().__init__(DakotaInput(**inputs))
 
@@ -410,7 +371,7 @@ class _DakotaDriver(DakotaBase):
                 np.concatenate(
                     (kwargs["cv"], kwargs["div"].astype(np.float64), kwargs["drv"]),
                 ),
-                self._constraint_indices,
+                self._normalized_constraints,
                 self._optimizer_callback,
                 return_functions=return_functions,
                 compute_gradients=compute_gradients,
@@ -477,7 +438,7 @@ class _DakotaDriver(DakotaBase):
 
 def _compute_response(  # noqa: PLR0913
     variables: NDArray[np.float64],
-    constraint_indices: _ConstraintIndices | None,
+    normalized_constraints: NormalizedConstraints | None,
     optimizer_callback: OptimizerCallback,
     *,
     return_functions: bool,
@@ -498,14 +459,23 @@ def _compute_response(  # noqa: PLR0913
             return_gradients=compute_gradients,
         )
 
-    # Reorder functions and gradients that correspond to nonlinear constraints:
-    if constraint_indices is not None:
-        ineq_indices, eq_indices = constraint_indices
-        indices = np.hstack((0, ineq_indices + 1, eq_indices + 1))
+    if normalized_constraints is not None:
+        normalized_constraints.reset()
+        neq = [idx for idx, eq in enumerate(normalized_constraints.is_eq) if not eq]
+        eq = [idx for idx, eq in enumerate(normalized_constraints.is_eq) if eq]
         if return_functions:
-            functions = functions[indices]
+            normalized_constraints.set_constraints(functions[1:].transpose())
+            assert normalized_constraints.constraints is not None
+            functions = np.hstack(
+                (functions[0], normalized_constraints.constraints[neq + eq, 0])
+            )
         if compute_gradients:
-            gradients = gradients[indices, :]
+            normalized_constraints.set_gradients(gradients[1:, :])
+            assert normalized_constraints.gradients is not None
+            gradients = np.vstack(
+                (gradients[:1, :], normalized_constraints.gradients[neq + eq, :])
+            )
+
     return functions, gradients
 
 

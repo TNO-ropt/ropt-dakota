@@ -221,17 +221,40 @@ def test_dakota_ineq_nonlinear_constraints_two_sided(
     enopt_config["variables"]["lower_bounds"] = [-1.0, -1.0, -1.0]
     enopt_config["variables"]["upper_bounds"] = [1.0, 1.0, 1.0]
     enopt_config["nonlinear_constraints"] = {
-        "lower_bounds": [0.0],
-        "upper_bounds": [0.3],
+        "lower_bounds": [0.01, 0.0],
+        "upper_bounds": [0.01, 0.3],
     }
     test_functions = (
         *test_functions,
+        lambda variables: variables[1],
         lambda variables: variables[0] + variables[2],
     )
 
     variables = BasicOptimizer(enopt_config, evaluator(test_functions)).run().variables
     assert variables is not None
-    assert np.allclose(variables, [-0.1, 0.0, 0.4], atol=0.02)
+    assert np.allclose(variables, [-0.1, 0.01, 0.4], atol=0.02)
+
+
+def test_dakota_ineq_nonlinear_constraints_eq_ineq(
+    enopt_config: Any,
+    evaluator: Any,
+    test_functions: Any,
+) -> None:
+    enopt_config["variables"]["lower_bounds"] = [-1.0, -1.0, -1.0]
+    enopt_config["variables"]["upper_bounds"] = [1.0, 1.0, 1.0]
+    enopt_config["nonlinear_constraints"] = {
+        "lower_bounds": [0.01, 0.0],
+        "upper_bounds": [0.01, 0.3],
+    }
+    test_functions = (
+        *test_functions,
+        lambda variables: variables[1],
+        lambda variables: variables[0] + variables[2],
+    )
+
+    variables = BasicOptimizer(enopt_config, evaluator(test_functions)).run().variables
+    assert variables is not None
+    assert np.allclose(variables, [-0.1, 0.01, 0.4], atol=0.02)
 
 
 def test_dakota_failed_realizations(enopt_config: Any, evaluator: Any) -> None:
