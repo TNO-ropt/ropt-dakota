@@ -10,7 +10,7 @@ from typing import Any, Final, Literal
 import numpy as np
 from dakota import _USER_DATA, DakotaBase, DakotaInput, run_dakota
 from numpy.typing import NDArray
-from ropt.config.enopt import EnOptConfig, OptimizerConfig
+from ropt.config.enopt import EnOptConfig
 from ropt.config.options import OptionsSchemaModel
 from ropt.exceptions import ConfigError
 from ropt.plugins.optimizer.base import Optimizer, OptimizerCallback, OptimizerPlugin
@@ -68,15 +68,15 @@ class DakotaOptimizer(Optimizer):
         """
         self._config = config
         self._optimizer_callback = optimizer_callback
-        self._normalized_constraints = (
-            NormalizedConstraints(
-                self._config.nonlinear_constraints.lower_bounds,
-                self._config.nonlinear_constraints.upper_bounds,
-            )
-            if self._config.nonlinear_constraints is not None
-            else None
-        )
+        self._normalized_constraints: NormalizedConstraints | None
         self._output_dir: Path
+
+        if self._config.nonlinear_constraints is not None:
+            self._normalized_constraints = NormalizedConstraints()
+            lower, upper = self._config.nonlinear_constraints.get_bounds()
+            self._normalized_constraints.set_bounds(lower, upper)
+        else:
+            self._normalized_constraints = None
 
         _, _, self._method = self._config.optimizer.method.lower().rpartition("/")
         if self._method == "default":
@@ -321,8 +321,7 @@ class DakotaOptimizer(Optimizer):
 
     def _start_direct_interface(self, initial_values: NDArray[np.float64]) -> None:
         driver = _DakotaDriver(
-            self._config.optimizer,
-            self._config.gradient.evaluation_policy,
+            self._config,
             self._optimizer_callback,
             self._normalized_constraints,
             self._get_inputs(initial_values),
@@ -343,15 +342,13 @@ class DakotaOptimizer(Optimizer):
 class _DakotaDriver(DakotaBase):
     def __init__(
         self,
-        optimizer_config: OptimizerConfig,
-        evaluation_policy: str,
+        config: EnOptConfig,
         optimizer_callback: OptimizerCallback,
         normalized_constraints: NormalizedConstraints | None,
         inputs: dict[str, list[str]],
     ) -> None:
-        self._optimizer_config = optimizer_config
+        self._config = config
         self._optimizer_callback = optimizer_callback
-        self._separate_evaluations = evaluation_policy == "separate"
         self._normalized_constraints = normalized_constraints
         self.exception: Exception | None = None
         super().__init__(DakotaInput(**inputs))
@@ -367,19 +364,17 @@ class _DakotaDriver(DakotaBase):
                 raise NotImplementedError(msg)  # noqa: TRY301
             return_functions = asv[0] in (1, 3)
             compute_gradients = asv[0] in (2, 3)
-            function_result, gradient_result = _compute_response(
+            function_result, gradient_result = self._compute_response(
                 np.concatenate(
                     (kwargs["cv"], kwargs["div"].astype(np.float64), kwargs["drv"]),
                 ),
-                self._normalized_constraints,
-                self._optimizer_callback,
                 return_functions=return_functions,
                 compute_gradients=compute_gradients,
-                separate_evaluations=self._separate_evaluations,
             )
         except Exception as err:
             self.exception = err
             raise
+
         # Store the return value.
         retval = {}
         if kwargs["asv"][0] & 1:
@@ -416,11 +411,11 @@ class _DakotaDriver(DakotaBase):
 
     def _override_input_file(self) -> str | None:
         input_file = None
-        if isinstance(self._optimizer_config.options, list):
+        if isinstance(self._config.optimizer.options, list):
             input_file = next(
                 (
                     option
-                    for option in self._optimizer_config.options
+                    for option in self._config.optimizer.options
                     if option.strip().startswith("input_file")
                 ),
                 None,
@@ -435,48 +430,66 @@ class _DakotaDriver(DakotaBase):
             raise RuntimeError(msg)
         return None
 
-
-def _compute_response(  # noqa: PLR0913
-    variables: NDArray[np.float64],
-    normalized_constraints: NormalizedConstraints | None,
-    optimizer_callback: OptimizerCallback,
-    *,
-    return_functions: bool,
-    compute_gradients: bool,
-    separate_evaluations: bool,
-) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
-    if return_functions and compute_gradients and separate_evaluations:
-        functions, _ = optimizer_callback(
-            variables, return_functions=True, return_gradients=False
-        )
-        _, gradients = optimizer_callback(
-            variables, return_functions=False, return_gradients=True
-        )
-    else:
-        functions, gradients = optimizer_callback(
-            variables,
-            return_functions=return_functions,
-            return_gradients=compute_gradients,
-        )
-
-    if normalized_constraints is not None:
-        normalized_constraints.reset()
-        neq = [idx for idx, eq in enumerate(normalized_constraints.is_eq) if not eq]
-        eq = [idx for idx, eq in enumerate(normalized_constraints.is_eq) if eq]
-        if return_functions:
-            normalized_constraints.set_constraints(functions[1:].transpose())
-            assert normalized_constraints.constraints is not None
-            functions = np.hstack(
-                (functions[0], normalized_constraints.constraints[neq + eq, 0])
+    def _compute_response(
+        self,
+        variables: NDArray[np.float64],
+        *,
+        return_functions: bool,
+        compute_gradients: bool,
+    ) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
+        if (
+            return_functions
+            and compute_gradients
+            and self._config.gradient.evaluation_policy == "separate"
+        ):
+            functions, _ = self._optimizer_callback(
+                variables, return_functions=True, return_gradients=False
             )
-        if compute_gradients:
-            normalized_constraints.set_gradients(gradients[1:, :])
-            assert normalized_constraints.gradients is not None
-            gradients = np.vstack(
-                (gradients[:1, :], normalized_constraints.gradients[neq + eq, :])
+            _, gradients = self._optimizer_callback(
+                variables, return_functions=False, return_gradients=True
+            )
+        else:
+            functions, gradients = self._optimizer_callback(
+                variables,
+                return_functions=return_functions,
+                return_gradients=compute_gradients,
             )
 
-    return functions, gradients
+        if self._normalized_constraints is not None:
+            assert self._config.nonlinear_constraints is not None
+            self._normalized_constraints.set_bounds(
+                *self._config.nonlinear_constraints.get_bounds()
+            )
+
+            self._normalized_constraints.reset()
+            neq = [
+                idx
+                for idx, eq in enumerate(self._normalized_constraints.is_eq)
+                if not eq
+            ]
+            eq = [
+                idx for idx, eq in enumerate(self._normalized_constraints.is_eq) if eq
+            ]
+            if return_functions:
+                self._normalized_constraints.set_constraints(functions[1:].transpose())
+                assert self._normalized_constraints.constraints is not None
+                functions = np.hstack(
+                    (
+                        functions[0],
+                        self._normalized_constraints.constraints[neq + eq, 0],
+                    )
+                )
+            if compute_gradients:
+                self._normalized_constraints.set_gradients(gradients[1:, :])
+                assert self._normalized_constraints.gradients is not None
+                gradients = np.vstack(
+                    (
+                        gradients[:1, :],
+                        self._normalized_constraints.gradients[neq + eq, :],
+                    )
+                )
+
+        return functions, gradients
 
 
 class DakotaOptimizerPlugin(OptimizerPlugin):
