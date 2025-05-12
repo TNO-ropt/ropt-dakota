@@ -5,21 +5,21 @@ from typing import Any
 import numpy as np
 import pytest
 from numpy.typing import NDArray
-from ropt.evaluator import Evaluator, EvaluatorContext, EvaluatorResult
+from ropt.evaluator import EvaluatorContext, EvaluatorResult
 
 _Function = Callable[[NDArray[np.float64]], float]
 
 
 def _function_runner(
     variables: NDArray[np.float64],
-    metadata: EvaluatorContext,
+    evaluator_context: EvaluatorContext,
     functions: list[_Function],
 ) -> EvaluatorResult:
-    objective_count = metadata.config.objectives.weights.size
+    objective_count = evaluator_context.config.objectives.weights.size
     constraint_count = (
         0
-        if metadata.config.nonlinear_constraints is None
-        else metadata.config.nonlinear_constraints.lower_bounds.size
+        if evaluator_context.config.nonlinear_constraints is None
+        else evaluator_context.config.nonlinear_constraints.lower_bounds.size
     )
     objective_results = np.zeros(
         (variables.shape[0], objective_count), dtype=np.float64
@@ -29,18 +29,18 @@ def _function_runner(
         if constraint_count > 0
         else None
     )
-    for sim, realization in enumerate(metadata.realizations):
+    for sim, realization in enumerate(evaluator_context.realizations):
         for idx in range(objective_count):
             if (
-                metadata.active_objectives is None
-                or metadata.active_objectives[idx, realization]
+                evaluator_context.active_objectives is None
+                or evaluator_context.active_objectives[idx, realization]
             ):
                 function = functions[idx]
                 objective_results[sim, idx] = function(variables[sim, :])
         for idx in range(constraint_count):
             if (
-                metadata.active_constraints is None
-                or metadata.active_constraints[idx, realization]
+                evaluator_context.active_constraints is None
+                or evaluator_context.active_constraints[idx, realization]
             ):
                 function = functions[idx + objective_count]
                 assert constraint_results is not None
@@ -66,8 +66,8 @@ def fixture_test_functions() -> tuple[_Function, _Function]:
 
 
 @pytest.fixture(scope="session")
-def evaluator(test_functions: Any) -> Callable[[list[_Function]], Evaluator]:
-    def _evaluator(test_functions: list[_Function] = test_functions) -> Evaluator:
+def evaluator(test_functions: Any) -> Callable[[list[_Function]], Any]:
+    def _evaluator(test_functions: list[_Function] = test_functions) -> Any:
         return partial(_function_runner, functions=test_functions)
 
     return _evaluator
