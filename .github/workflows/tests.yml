@@ -32,4 +32,4 @@ jobs:
         uv sync --all-extras --dev
         uv pip install git+https://github.com/TNO-ropt/ropt
     - name: Run pytest
-      run: uv run pytest tests
+      run: uv run pytest tests --run-external

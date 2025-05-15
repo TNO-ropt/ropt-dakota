@@ -13,7 +13,8 @@ from numpy.typing import NDArray
 from ropt.config.enopt import EnOptConfig
 from ropt.config.options import OptionsSchemaModel
 from ropt.exceptions import ConfigError
-from ropt.plugins.optimizer.base import Optimizer, OptimizerCallback, OptimizerPlugin
+from ropt.optimization import OptimizerCallback
+from ropt.plugins.optimizer.base import Optimizer, OptimizerPlugin
 from ropt.plugins.optimizer.utils import (
     NormalizedConstraints,
     create_output_path,
@@ -73,7 +74,10 @@ class DakotaOptimizer(Optimizer):
 
         if self._config.nonlinear_constraints is not None:
             self._normalized_constraints = NormalizedConstraints()
-            lower, upper = self._config.nonlinear_constraints.get_bounds()
+            lower, upper = (
+                self._config.nonlinear_constraints.lower_bounds,
+                self._config.nonlinear_constraints.upper_bounds,
+            )
             self._normalized_constraints.set_bounds(lower, upper)
         else:
             self._normalized_constraints = None
@@ -356,7 +360,7 @@ class _DakotaDriver(DakotaBase):
     def dakota_callback(
         self,
         **kwargs: Any,  # noqa: ANN401
-    ) -> dict[str, NDArray[np.float64]]:
+    ) -> dict[str, NDArray[np.float64] | None]:
         try:
             asv = [response for response in kwargs["asv"] if response > 0]
             if len(set(asv)) > 1:
@@ -436,29 +440,36 @@ class _DakotaDriver(DakotaBase):
         *,
         return_functions: bool,
         compute_gradients: bool,
-    ) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
+    ) -> tuple[NDArray[np.float64] | None, NDArray[np.float64] | None]:
         if (
             return_functions
             and compute_gradients
             and self._config.gradient.evaluation_policy == "separate"
         ):
-            functions, _ = self._optimizer_callback(
+            callback_result = self._optimizer_callback(
                 variables, return_functions=True, return_gradients=False
             )
-            _, gradients = self._optimizer_callback(
+            functions = callback_result.functions
+            callback_result = self._optimizer_callback(
                 variables, return_functions=False, return_gradients=True
             )
+            gradients = callback_result.gradients
         else:
-            functions, gradients = self._optimizer_callback(
+            callback_result = self._optimizer_callback(
                 variables,
                 return_functions=return_functions,
                 return_gradients=compute_gradients,
             )
+            functions = callback_result.functions
+            gradients = callback_result.gradients
 
-        if self._normalized_constraints is not None:
+        if (
+            self._normalized_constraints is not None
+            and callback_result.nonlinear_constraint_bounds is not None
+        ):
             assert self._config.nonlinear_constraints is not None
             self._normalized_constraints.set_bounds(
-                *self._config.nonlinear_constraints.get_bounds()
+                *callback_result.nonlinear_constraint_bounds
             )
 
             self._normalized_constraints.reset()
@@ -471,6 +482,7 @@ class _DakotaDriver(DakotaBase):
                 idx for idx, eq in enumerate(self._normalized_constraints.is_eq) if eq
             ]
             if return_functions:
+                assert functions is not None
                 self._normalized_constraints.set_constraints(functions[1:].transpose())
                 assert self._normalized_constraints.constraints is not None
                 functions = np.hstack(
@@ -480,6 +492,7 @@ class _DakotaDriver(DakotaBase):
                     )
                 )
             if compute_gradients:
+                assert gradients is not None
                 self._normalized_constraints.set_gradients(gradients[1:, :])
                 assert self._normalized_constraints.gradients is not None
                 gradients = np.vstack(

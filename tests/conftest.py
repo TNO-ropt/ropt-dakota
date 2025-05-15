@@ -1,6 +1,6 @@
 from collections.abc import Callable
 from functools import partial
-from typing import Any
+from typing import Any, Sequence
 
 import numpy as np
 import pytest
@@ -8,6 +8,23 @@ from numpy.typing import NDArray
 from ropt.evaluator import EvaluatorContext, EvaluatorResult
 
 _Function = Callable[[NDArray[np.float64]], float]
+
+
+def pytest_addoption(parser: Any) -> Any:
+    parser.addoption(
+        "--run-external",
+        action="store_true",
+        default=False,
+        help="run tests with external optimizers",
+    )
+
+
+def pytest_collection_modifyitems(config: Any, items: Sequence[Any]) -> None:
+    if not config.getoption("--run-external"):
+        skip_external = pytest.mark.skip(reason="need --run-external option to run")
+        for item in items:
+            if "external" in item.keywords:
+                item.add_marker(skip_external)
 
 
 def _function_runner(

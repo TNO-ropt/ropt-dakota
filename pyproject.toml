@@ -39,6 +39,7 @@ version = { attr = "ropt_dakota.version.__version__" }
 write_to = "src/ropt_dakota/version.py"
 
 [tool.pytest.ini_options]
+markers = ["external: external optimizer marker"]
 filterwarnings = [
     "error",
     'ignore:.*Pydantic will allow any object with no validation.*:UserWarning', # 3.8

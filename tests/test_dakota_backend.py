@@ -71,7 +71,11 @@ def test_dakota_invalid_options(enopt_config: Any) -> None:
         )
 
 
-def test_dakota_unconstrained(enopt_config: Any, evaluator: Any) -> None:
+@pytest.mark.parametrize(
+    "external", ["", pytest.param("external/", marks=pytest.mark.external)]
+)
+def test_dakota_unconstrained(enopt_config: Any, evaluator: Any, external: str) -> None:
+    enopt_config["optimizer"]["method"] = f"{external}optpp_q_newton"
     variables = BasicOptimizer(enopt_config, evaluator()).run().variables
     assert variables is not None
     assert np.allclose(variables, [0.0, 0.0, 0.5], atol=0.02)
@@ -523,9 +527,13 @@ class ConstraintScaler(NonLinearConstraintTransform):
         return lower_diffs * self._scales, upper_diffs * self._scales
 
 
+@pytest.mark.parametrize(
+    "external", ["", pytest.param("external/", marks=pytest.mark.external)]
+)
 def test_dakota_nonlinear_constraint_with_scaler(
-    enopt_config: Any, evaluator: Any, test_functions: Any
+    enopt_config: Any, evaluator: Any, test_functions: Any, external: str
 ) -> None:
+    enopt_config["optimizer"]["method"] = f"{external}optpp_q_newton"
     enopt_config["nonlinear_constraints"] = {
         "lower_bounds": 0.0,
         "upper_bounds": 0.4,
@@ -549,7 +557,11 @@ def test_dakota_nonlinear_constraint_with_scaler(
     config = EnOptConfig.model_validate(enopt_config, context=transforms)
     assert config.nonlinear_constraints is not None
     assert config.nonlinear_constraints.upper_bounds == 0.4
-    bounds = config.nonlinear_constraints.get_bounds()
+    assert transforms.nonlinear_constraints is not None
+    bounds = transforms.nonlinear_constraints.bounds_to_optimizer(
+        config.nonlinear_constraints.lower_bounds,
+        config.nonlinear_constraints.upper_bounds,
+    )
     assert bounds is not None
     assert bounds[1] == 0.4 / scales
 
@@ -585,9 +597,13 @@ def test_dakota_nonlinear_constraint_with_scaler(
     )
 
 
+@pytest.mark.parametrize(
+    "external", ["", pytest.param("external/", marks=pytest.mark.external)]
+)
 def test_dakota_nonlinear_constraint_with_lazy_scaler(
-    enopt_config: Any, evaluator: Any, test_functions: Any
+    enopt_config: Any, evaluator: Any, test_functions: Any, external: str
 ) -> None:
+    enopt_config["optimizer"]["method"] = f"{external}optpp_q_newton"
     enopt_config["nonlinear_constraints"] = {
         "lower_bounds": 0.0,
         "upper_bounds": 0.4,
@@ -613,8 +629,11 @@ def test_dakota_nonlinear_constraint_with_lazy_scaler(
     config = EnOptConfig.model_validate(enopt_config, context=transforms)
     assert config.nonlinear_constraints is not None
     assert config.nonlinear_constraints.upper_bounds == 0.4
-    bounds = config.nonlinear_constraints.get_bounds()
-    assert bounds is not None
+    assert transforms.nonlinear_constraints is not None
+    bounds = transforms.nonlinear_constraints.bounds_to_optimizer(
+        config.nonlinear_constraints.lower_bounds,
+        config.nonlinear_constraints.upper_bounds,
+    )
     assert bounds[1] == 0.4
 
     def constraint_function(variables: NDArray[np.float64]) -> float:
@@ -632,7 +651,11 @@ def test_dakota_nonlinear_constraint_with_lazy_scaler(
             if isinstance(item, FunctionResults) and check:
                 check = False
                 assert config.nonlinear_constraints is not None
-                _, upper_bounds = config.nonlinear_constraints.get_bounds()
+                assert transforms.nonlinear_constraints is not None
+                _, upper_bounds = transforms.nonlinear_constraints.bounds_to_optimizer(
+                    config.nonlinear_constraints.lower_bounds,
+                    config.nonlinear_constraints.upper_bounds,
+                )
                 assert np.allclose(upper_bounds, 0.4 / scales)
                 assert item.functions is not None
                 assert item.functions.constraints is not None
