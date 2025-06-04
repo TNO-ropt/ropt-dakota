@@ -21,6 +21,7 @@ def enopt_config_fixture() -> dict[str, Any]:
     return {
         "variables": {
             "initial_values": [0.0, 0.0, 0.1],
+            "perturbation_magnitudes": 0.01,
         },
         "optimizer": {
             "method": "dakota/default",
@@ -28,9 +29,6 @@ def enopt_config_fixture() -> dict[str, Any]:
         },
         "objectives": {
             "weights": [0.75, 0.25],
-        },
-        "gradient": {
-            "perturbation_magnitudes": 0.01,
         },
     }
 
@@ -303,12 +301,12 @@ def test_dakota_user_abort(enopt_config: Any, evaluator: Any) -> None:
 
 
 def test_dakota_evaluation_policy_separate(enopt_config: Any, evaluator: Any) -> None:
-    enopt_config["gradient"]["evaluation_policy"] = "separate"
+    enopt_config["gradient"] = {"evaluation_policy": "separate"}
     variables = BasicOptimizer(enopt_config, evaluator()).run().variables
     assert variables is not None
     assert np.allclose(variables, [0.0, 0.0, 0.5], atol=0.02)
 
-    enopt_config["gradient"]["evaluation_policy"] = "separate"
+    enopt_config["gradient"] = {"evaluation_policy": "separate"}
     variables = BasicOptimizer(enopt_config, evaluator()).run().variables
     assert variables is not None
     assert np.allclose(variables, [0.0, 0.0, 0.5], atol=0.02)
