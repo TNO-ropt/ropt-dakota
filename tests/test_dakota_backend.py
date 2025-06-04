@@ -6,7 +6,7 @@ import pytest
 from numpy.typing import ArrayLike, NDArray
 from pydantic import ValidationError
 from ropt.config.enopt import EnOptConfig
-from ropt.enums import EventType, OptimizerExitCode
+from ropt.enums import EventType, ExitCode
 from ropt.plan import BasicOptimizer, Event
 from ropt.plugins import PluginManager
 from ropt.results import FunctionResults, GradientResults, Results
@@ -280,7 +280,7 @@ def test_dakota_failed_realizations(enopt_config: Any, evaluator: Any) -> None:
         )
         .run()
         .exit_code
-        == OptimizerExitCode.TOO_FEW_REALIZATIONS
+        == ExitCode.TOO_FEW_REALIZATIONS
     )
 
 
@@ -299,7 +299,7 @@ def test_dakota_user_abort(enopt_config: Any, evaluator: Any) -> None:
     optimizer.run()
     assert optimizer.results is not None
     assert last_evaluation == 2
-    assert optimizer.exit_code == OptimizerExitCode.USER_ABORT
+    assert optimizer.exit_code == ExitCode.USER_ABORT
 
 
 def test_dakota_evaluation_policy_separate(enopt_config: Any, evaluator: Any) -> None:
