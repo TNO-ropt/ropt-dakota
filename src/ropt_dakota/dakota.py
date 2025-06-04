@@ -10,7 +10,7 @@ from typing import Any, Final, Literal
 import numpy as np
 from dakota import _USER_DATA, DakotaBase, DakotaInput, run_dakota
 from numpy.typing import NDArray
-from ropt.config.enopt import EnOptConfig
+from ropt.config import EnOptConfig
 from ropt.config.options import OptionsSchemaModel
 from ropt.exceptions import ConfigError
 from ropt.optimization import OptimizerCallback
@@ -44,12 +44,12 @@ class DakotaOptimizer(Optimizer):
     [`Dakota`](https://snl-dakota.github.io/), enabling their use within `ropt`.
 
     To select an optimizer, set the `method` field within the
-    [`optimizer`][ropt.config.enopt.OptimizerConfig] section of the
-    [`EnOptConfig`][ropt.config.enopt.EnOptConfig] configuration object to the
+    [`optimizer`][ropt.config.OptimizerConfig] section of the
+    [`EnOptConfig`][ropt.config.EnOptConfig] configuration object to the
     desired algorithm's name. Most methods support the general options defined
-    in the [`EnOptConfig`][ropt.config.enopt.EnOptConfig] object. For
+    in the [`EnOptConfig`][ropt.config.EnOptConfig] object. For
     algorithm-specific options, use the `options` dictionary within the
-    [`optimizer`][ropt.config.enopt.OptimizerConfig] section.
+    [`optimizer`][ropt.config.OptimizerConfig] section.
 
     The table below lists the included methods together with the method-specific
     options that are supported. Click on the method name to consult the
