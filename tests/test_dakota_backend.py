@@ -15,12 +15,14 @@ from ropt.transforms.base import NonLinearConstraintTransform, ObjectiveTransfor
 
 from ropt_dakota.dakota import _SUPPORTED_METHODS
 
+initial_values = [0.0, 0.0, 0.1]
+
 
 @pytest.fixture(name="enopt_config")
 def enopt_config_fixture() -> dict[str, Any]:
     return {
         "variables": {
-            "initial_values": [0.0, 0.0, 0.1],
+            "variable_count": len(initial_values),
             "perturbation_magnitudes": 0.01,
         },
         "optimizer": {
@@ -74,20 +76,16 @@ def test_dakota_invalid_options(enopt_config: Any) -> None:
 )
 def test_dakota_unconstrained(enopt_config: Any, evaluator: Any, external: str) -> None:
     enopt_config["optimizer"]["method"] = f"{external}optpp_q_newton"
-    variables = BasicOptimizer(enopt_config, evaluator()).run().variables
+    variables = BasicOptimizer(enopt_config, evaluator()).run(initial_values).variables
     assert variables is not None
     assert np.allclose(variables, [0.0, 0.0, 0.5], atol=0.02)
 
 
 def test_dakota_option(enopt_config: Any, evaluator: Any) -> None:
     enopt_config["optimizer"]["options"] = ["max_iterations = 0"]
-    variables = BasicOptimizer(enopt_config, evaluator()).run().variables
+    variables = BasicOptimizer(enopt_config, evaluator()).run(initial_values).variables
     assert variables is not None
-    assert np.allclose(
-        variables,
-        enopt_config["variables"]["initial_values"],
-        atol=0.02,
-    )
+    assert np.allclose(variables, initial_values, atol=0.02)
 
 
 @pytest.mark.parametrize(
@@ -103,7 +101,7 @@ def test_dakota_bound_constraint(
     enopt_config["optimizer"]["method"] = f"dakota/{method}"
     enopt_config["variables"]["lower_bounds"] = -1.0
     enopt_config["variables"]["upper_bounds"] = [1.0, 1.0, 0.2]
-    variables = BasicOptimizer(enopt_config, evaluator()).run().variables
+    variables = BasicOptimizer(enopt_config, evaluator()).run(initial_values).variables
     assert variables is not None
     # Some methods do not easily convert, we just test if the ran:
     if method not in ("coliny_ea", "moga"):
@@ -116,7 +114,7 @@ def test_dakota_eq_linear_constraint(enopt_config: Any, evaluator: Any) -> None:
         "lower_bounds": [1.0, 0.75],
         "upper_bounds": [1.0, 0.75],
     }
-    variables = BasicOptimizer(enopt_config, evaluator()).run().variables
+    variables = BasicOptimizer(enopt_config, evaluator()).run(initial_values).variables
     assert variables is not None
     assert np.allclose(variables, [0.25, 0.0, 0.75], atol=0.02)
 
@@ -127,7 +125,7 @@ def test_dakota_ge_linear_constraint(enopt_config: Any, evaluator: Any) -> None:
         "lower_bounds": -0.4,
         "upper_bounds": np.inf,
     }
-    variables = BasicOptimizer(enopt_config, evaluator()).run().variables
+    variables = BasicOptimizer(enopt_config, evaluator()).run(initial_values).variables
     assert variables is not None
     assert np.allclose(variables, [-0.05, 0.0, 0.45], atol=0.02)
 
@@ -138,7 +136,7 @@ def test_dakota_le_linear_constraint(enopt_config: Any, evaluator: Any) -> None:
         "lower_bounds": -np.inf,
         "upper_bounds": 0.4,
     }
-    variables = BasicOptimizer(enopt_config, evaluator()).run().variables
+    variables = BasicOptimizer(enopt_config, evaluator()).run(initial_values).variables
     assert variables is not None
     assert np.allclose(variables, [-0.05, 0.0, 0.45], atol=0.02)
 
@@ -149,7 +147,7 @@ def test_dakota_le_ge_linear_constraints(enopt_config: Any, evaluator: Any) -> N
         "lower_bounds": [-np.inf, -0.4],
         "upper_bounds": [0.4, np.inf],
     }
-    variables = BasicOptimizer(enopt_config, evaluator()).run().variables
+    variables = BasicOptimizer(enopt_config, evaluator()).run(initial_values).variables
     assert variables is not None
     assert np.allclose(variables, [-0.05, 0.0, 0.45], atol=0.02)
 
@@ -163,7 +161,7 @@ def test_dakota_le_ge_linear_constraints_two_sided(
         "upper_bounds": [0.3, np.inf],
     }
 
-    variables = BasicOptimizer(enopt_config, evaluator()).run().variables
+    variables = BasicOptimizer(enopt_config, evaluator()).run(initial_values).variables
     assert variables is not None
     assert np.allclose(variables, [-0.1, 0.0, 0.4], atol=0.02)
 
@@ -173,7 +171,7 @@ def test_dakota_le_ge_linear_constraints_two_sided(
         "upper_bounds": [0.3],
     }
 
-    variables = BasicOptimizer(enopt_config, evaluator()).run().variables
+    variables = BasicOptimizer(enopt_config, evaluator()).run(initial_values).variables
     assert variables is not None
     assert np.allclose(variables, [-0.1, 0.0, 0.4], atol=0.02)
 
@@ -189,7 +187,11 @@ def test_dakota_eq_nonlinear_constraint(
         *test_functions,
         lambda variables: variables[0] + variables[2],
     )
-    variables = BasicOptimizer(enopt_config, evaluator(test_functions)).run().variables
+    variables = (
+        BasicOptimizer(enopt_config, evaluator(test_functions))
+        .run(initial_values)
+        .variables
+    )
     assert variables is not None
     assert np.allclose(variables, [0.25, 0.0, 0.75], atol=0.02)
 
@@ -213,7 +215,11 @@ def test_dakota_ineq_nonlinear_constraint(
         *test_functions,
         lambda variables: weight * variables[0] + weight * variables[2],
     )
-    variables = BasicOptimizer(enopt_config, evaluator(test_functions)).run().variables
+    variables = (
+        BasicOptimizer(enopt_config, evaluator(test_functions))
+        .run(initial_values)
+        .variables
+    )
     assert variables is not None
     assert np.allclose(variables, [-0.05, 0.0, 0.45], atol=0.02)
 
@@ -235,7 +241,11 @@ def test_dakota_ineq_nonlinear_constraints_two_sided(
         lambda variables: variables[0] + variables[2],
     )
 
-    variables = BasicOptimizer(enopt_config, evaluator(test_functions)).run().variables
+    variables = (
+        BasicOptimizer(enopt_config, evaluator(test_functions))
+        .run(initial_values)
+        .variables
+    )
     assert variables is not None
     assert np.allclose(variables, [-0.1, 0.01, 0.4], atol=0.02)
 
@@ -257,7 +267,11 @@ def test_dakota_ineq_nonlinear_constraints_eq_ineq(
         lambda variables: variables[0] + variables[2],
     )
 
-    variables = BasicOptimizer(enopt_config, evaluator(test_functions)).run().variables
+    variables = (
+        BasicOptimizer(enopt_config, evaluator(test_functions))
+        .run(initial_values)
+        .variables
+    )
     assert variables is not None
     assert np.allclose(variables, [-0.1, 0.01, 0.4], atol=0.02)
 
@@ -276,7 +290,7 @@ def test_dakota_failed_realizations(enopt_config: Any, evaluator: Any) -> None:
             enopt_config,
             evaluator(functions),
         )
-        .run()
+        .run(initial_values)
         .exit_code
         == ExitCode.TOO_FEW_REALIZATIONS
     )
@@ -294,7 +308,7 @@ def test_dakota_user_abort(enopt_config: Any, evaluator: Any) -> None:
         return False
 
     optimizer = BasicOptimizer(enopt_config, evaluator()).set_abort_callback(_abort)
-    optimizer.run()
+    optimizer.run(initial_values)
     assert optimizer.results is not None
     assert last_evaluation == 2
     assert optimizer.exit_code == ExitCode.USER_ABORT
@@ -302,18 +316,17 @@ def test_dakota_user_abort(enopt_config: Any, evaluator: Any) -> None:
 
 def test_dakota_evaluation_policy_separate(enopt_config: Any, evaluator: Any) -> None:
     enopt_config["gradient"] = {"evaluation_policy": "separate"}
-    variables = BasicOptimizer(enopt_config, evaluator()).run().variables
+    variables = BasicOptimizer(enopt_config, evaluator()).run(initial_values).variables
     assert variables is not None
     assert np.allclose(variables, [0.0, 0.0, 0.5], atol=0.02)
 
     enopt_config["gradient"] = {"evaluation_policy": "separate"}
-    variables = BasicOptimizer(enopt_config, evaluator()).run().variables
+    variables = BasicOptimizer(enopt_config, evaluator()).run(initial_values).variables
     assert variables is not None
     assert np.allclose(variables, [0.0, 0.0, 0.5], atol=0.02)
 
 
 def test_dakota_optimizer_variables_subset(enopt_config: Any, evaluator: Any) -> None:
-    enopt_config["variables"]["initial_values"] = [0.0, 0.0, 0.1]
     enopt_config["variables"]["lower_bounds"] = -1.0
     enopt_config["variables"]["upper_bounds"] = 1.0
 
@@ -331,7 +344,7 @@ def test_dakota_optimizer_variables_subset(enopt_config: Any, evaluator: Any) ->
     variables = (
         BasicOptimizer(enopt_config, evaluator())
         .set_results_callback(assert_gradient)
-        .run()
+        .run(initial_values)
         .variables
     )
     assert variables is not None
@@ -342,17 +355,18 @@ def test_dakota_optimizer_variables_subset_linear_constraints(
     enopt_config: Any, evaluator: Any
 ) -> None:
     # Set the second variable a constant value, this will not affect the
-    # optimization of the other variables in this particular test problem:
-    enopt_config["variables"]["initial_values"] = [0.0, 1.0, 0.1]
-    # The second and third constraints are dropped because they involve
-    # variables that are not optimized. They are still checked by the monitor:
+    # optimization of the other variables in this particular test problem: The
+    # second and third constraints are dropped because they involve variables
+    # that are not optimized. They are still checked by the monitor:
     enopt_config["linear_constraints"] = {
         "coefficients": [[1, 0, 1], [0, 1, 0], [1, 1, 1]],
         "lower_bounds": [1.0, 1.0, 2.0],
         "upper_bounds": [1.0, 1.0, 2.0],
     }
     enopt_config["variables"]["mask"] = [True, False, True]
-    variables = BasicOptimizer(enopt_config, evaluator()).run().variables
+    initial = initial_values.copy()
+    initial[1] = 1.0
+    variables = BasicOptimizer(enopt_config, evaluator()).run(initial).variables
     assert variables is not None
     assert np.allclose(variables, [0.25, 1.0, 0.75], atol=0.02)
 
@@ -362,11 +376,11 @@ def test_dakota_output_dir(tmp_path: Path, enopt_config: Any, evaluator: Any) ->
     output_dir.mkdir()
     enopt_config["optimizer"]["output_dir"] = output_dir
     enopt_config["optimizer"]["max_functions"] = 1
-    BasicOptimizer(enopt_config, evaluator()).run()
+    BasicOptimizer(enopt_config, evaluator()).run(initial_values)
     assert (output_dir / "dakota").exists()
-    BasicOptimizer(enopt_config, evaluator()).run()
+    BasicOptimizer(enopt_config, evaluator()).run(initial_values)
     assert (output_dir / "dakota-001").exists()
-    BasicOptimizer(enopt_config, evaluator()).run()
+    BasicOptimizer(enopt_config, evaluator()).run(initial_values)
     assert (output_dir / "dakota-002").exists()
 
 
@@ -390,7 +404,7 @@ class ObjectiveScaler(ObjectiveTransform):
 def test_dakota_objective_with_scaler(
     enopt_config: Any, evaluator: Any, test_functions: Any
 ) -> None:
-    results1 = BasicOptimizer(enopt_config, evaluator()).run().results
+    results1 = BasicOptimizer(enopt_config, evaluator()).run(initial_values).results
     assert results1 is not None
     assert results1.functions is not None
     variables1 = results1.evaluations.variables
@@ -404,7 +418,7 @@ def test_dakota_objective_with_scaler(
     def function2(variables: NDArray[np.float64]) -> float:
         return float(test_functions[1](variables))
 
-    init1 = test_functions[1](enopt_config["variables"]["initial_values"])
+    init1 = test_functions[1](initial_values)
     transforms = OptModelTransforms(
         objectives=ObjectiveScaler(np.array([init1, init1]))
     )
@@ -431,7 +445,7 @@ def test_dakota_objective_with_scaler(
     optimizer._observers.append(  # noqa: SLF001
         (EventType.FINISHED_EVALUATION, check_value)
     )
-    results2 = optimizer.run().results
+    results2 = optimizer.run(initial_values).results
     assert results2 is not None
     assert np.allclose(results2.evaluations.variables, variables1, atol=0.02)
     assert results2.functions is not None
@@ -441,7 +455,7 @@ def test_dakota_objective_with_scaler(
 def test_dakota_objective_with_lazy_scaler(
     enopt_config: Any, evaluator: Any, test_functions: Any
 ) -> None:
-    results1 = BasicOptimizer(enopt_config, evaluator()).run().results
+    results1 = BasicOptimizer(enopt_config, evaluator()).run(initial_values).results
     assert results1 is not None
     assert results1.functions is not None
     variables1 = results1.evaluations.variables
@@ -452,7 +466,7 @@ def test_dakota_objective_with_lazy_scaler(
     objective_transform = ObjectiveScaler(np.array([1.0, 1.0]))
     transforms = OptModelTransforms(objectives=objective_transform)
 
-    init1 = test_functions[1](enopt_config["variables"]["initial_values"])
+    init1 = test_functions[1](initial_values)
 
     def function1(variables: NDArray[np.float64]) -> float:
         objective_transform.set_scales([init1, init1])
@@ -483,7 +497,7 @@ def test_dakota_objective_with_lazy_scaler(
     optimizer._observers.append(  # noqa: SLF001
         (EventType.FINISHED_EVALUATION, check_value)
     )
-    results2 = optimizer.run().results
+    results2 = optimizer.run(initial_values).results
     assert results2 is not None
     assert np.allclose(results2.evaluations.variables, variables1, atol=0.02)
     assert results2.functions is not None
@@ -534,14 +548,14 @@ def test_dakota_nonlinear_constraint_with_scaler(
         lambda variables: variables[0] + variables[2],
     )
 
-    results1 = BasicOptimizer(enopt_config, evaluator(functions)).run().results
+    results1 = (
+        BasicOptimizer(enopt_config, evaluator(functions)).run(initial_values).results
+    )
     assert results1 is not None
     assert results1.evaluations.variables[[0, 2]].sum() > 0.0 - 1e-5
     assert results1.evaluations.variables[[0, 2]].sum() < 0.4 + 1e-5
 
-    scales = np.array(
-        functions[-1](enopt_config["variables"]["initial_values"]), ndmin=1
-    )
+    scales = np.array(functions[-1](initial_values), ndmin=1)
     transforms = OptModelTransforms(nonlinear_constraints=ConstraintScaler(scales))
     config = EnOptConfig.model_validate(enopt_config, context=transforms)
     assert config.nonlinear_constraints is not None
@@ -576,7 +590,7 @@ def test_dakota_nonlinear_constraint_with_scaler(
     optimizer._observers.append(  # noqa: SLF001
         (EventType.FINISHED_EVALUATION, check_constraints)
     )
-    results2 = optimizer.run().results
+    results2 = optimizer.run(initial_values).results
     assert results2 is not None
     assert np.allclose(
         results2.evaluations.variables, results1.evaluations.variables, atol=0.02
@@ -605,14 +619,14 @@ def test_dakota_nonlinear_constraint_with_lazy_scaler(
         lambda variables: variables[0] + variables[2],
     )
 
-    results1 = BasicOptimizer(enopt_config, evaluator(functions)).run().results
+    results1 = (
+        BasicOptimizer(enopt_config, evaluator(functions)).run(initial_values).results
+    )
     assert results1 is not None
     assert results1.evaluations.variables[[0, 2]].sum() > 0.0 - 1e-5
     assert results1.evaluations.variables[[0, 2]].sum() < 0.4 + 1e-5
 
-    scales = np.array(
-        functions[-1](enopt_config["variables"]["initial_values"]), ndmin=1
-    )
+    scales = np.array(functions[-1](initial_values), ndmin=1)
     scaler = ConstraintScaler([1.0])
     transforms = OptModelTransforms(nonlinear_constraints=scaler)
 
@@ -662,7 +676,7 @@ def test_dakota_nonlinear_constraint_with_lazy_scaler(
     optimizer._observers.append(  # noqa: SLF001
         (EventType.FINISHED_EVALUATION, check_constraints)
     )
-    results2 = optimizer.run().results
+    results2 = optimizer.run(initial_values).results
     assert results2 is not None
     assert np.allclose(
         results2.evaluations.variables, results1.evaluations.variables, atol=0.02
