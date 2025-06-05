@@ -134,7 +134,7 @@ class DakotaOptimizer(Optimizer):
             "model": ["single"],
             "variables": (
                 self._get_variables_section(initial_values)
-                + self._get_linear_constraints_section()
+                + self._get_linear_constraints_section(initial_values)
             ),
             "responses": [
                 "num_objective_functions = 1",
@@ -221,12 +221,14 @@ class DakotaOptimizer(Optimizer):
         )
         return inputs
 
-    def _get_linear_constraints_section(self) -> list[str]:
+    def _get_linear_constraints_section(
+        self, initial_values: NDArray[np.float64]
+    ) -> list[str]:
         inputs: list[str] = []
 
         if self._config.linear_constraints is not None:
             all_coefficients, all_lower_bounds, all_upper_bounds = (
-                get_masked_linear_constraints(self._config)
+                get_masked_linear_constraints(self._config, initial_values)
             )
 
             eq_idx = np.abs(all_lower_bounds - all_upper_bounds) <= 1e-15  # noqa: PLR2004
