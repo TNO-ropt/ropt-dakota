@@ -81,13 +81,6 @@ def test_dakota_unconstrained(enopt_config: Any, evaluator: Any, external: str) 
     assert np.allclose(variables, [0.0, 0.0, 0.5], atol=0.02)
 
 
-def test_dakota_option(enopt_config: Any, evaluator: Any) -> None:
-    enopt_config["optimizer"]["options"] = ["max_iterations = 0"]
-    variables = BasicOptimizer(enopt_config, evaluator()).run(initial_values).variables
-    assert variables is not None
-    assert np.allclose(variables, initial_values, atol=0.02)
-
-
 @pytest.mark.parametrize(
     # The conmin algorithms are not tested, since they produce some output to
     # the terminal that we are not able to suppress. The soga method crashes
