@@ -12,7 +12,6 @@ from dakota import _USER_DATA, DakotaBase, DakotaInput, run_dakota
 from numpy.typing import NDArray
 from ropt.config import EnOptConfig
 from ropt.config.options import OptionsSchemaModel
-from ropt.exceptions import ConfigError
 from ropt.optimization import OptimizerCallback
 from ropt.plugins.optimizer.base import Optimizer, OptimizerPlugin
 from ropt.plugins.optimizer.utils import (
@@ -181,7 +180,7 @@ class DakotaOptimizer(Optimizer):
                     inputs.append(f"{option}")
             except TypeError as exc:
                 msg = "Cannot parse Dakota optimization options"
-                raise ConfigError(msg) from exc
+                raise ValueError(msg) from exc
         return inputs
 
     def _get_variables_section(self, initial_values: NDArray[np.float64]) -> list[str]:
