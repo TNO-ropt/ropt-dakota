@@ -537,9 +537,9 @@ class DakotaOptimizerPlugin(OptimizerPlugin):
         # noqa
         """
         if options is not None:
-            if isinstance(options, dict):
+            if not isinstance(options, list):
                 msg = "Dakota optimizer options must be a list of strings"
-                raise TypeError(msg)
+                raise ValueError(msg)
             options_dict: dict[str, Any] = {}
             for option in options:
                 split_option = re.split(r"\s*=\s*|\s+", option.strip(), maxsplit=1)
