@@ -8,7 +8,7 @@ from tempfile import TemporaryDirectory
 from typing import Any, Final, Literal
 
 import numpy as np
-from dakota import _USER_DATA, DakotaBase, DakotaInput, run_dakota
+from dakota import DakotaBase, DakotaInput
 from numpy.typing import NDArray
 from ropt.config import EnOptConfig
 from ropt.config.options import OptionsSchemaModel
@@ -21,7 +21,6 @@ from ropt.plugins.optimizer.utils import (
 )
 
 _PRECISION: Final[int] = 8
-_INF: Final = 1e30
 
 
 _SUPPORTED_METHODS: Final = {
@@ -72,7 +71,7 @@ class DakotaOptimizer(Optimizer):
         self._output_dir: Path
 
         if self._config.nonlinear_constraints is not None:
-            self._normalized_constraints = NormalizedConstraints()
+            self._normalized_constraints = NormalizedConstraints(flip=True)
             lower, upper = (
                 self._config.nonlinear_constraints.lower_bounds,
                 self._config.nonlinear_constraints.upper_bounds,
@@ -135,65 +134,47 @@ class DakotaOptimizer(Optimizer):
                 self._get_variables_section(initial_values)
                 + self._get_linear_constraints_section(initial_values)
             ),
-            "responses": [
-                "num_objective_functions = 1",
-                "analytic_gradients",
-                "no_hessians",
-                *self._get_responses_section(),
-            ],
+            "responses": self._get_responses_section(),
         }
 
     def _get_method_section(self) -> list[str]:
-        inputs: list[str] = []
-        inputs.append(self._method)
-        # Scaling is always on
-        inputs.append("scaling")
-        iterations = self._config.optimizer.max_iterations
-        if iterations is not None and self._method != "asynch_pattern_search":
-            inputs.append(f"max_iterations = {iterations}")
-        convergence_tolerance = self._config.optimizer.tolerance
-        if convergence_tolerance is not None:
-            tolerance_option = (
-                "variable_tolerance"
-                if self._method in ["mesh_adaptive_search", "asynch_pattern_search"]
-                else "convergence_tolerance"
+        inputs: list[str] = [self._method]
+        if (
+            self._config.optimizer.max_iterations is not None
+            and self._method != "asynch_pattern_search"
+        ):
+            inputs.append(f"max_iterations = {self._config.optimizer.max_iterations}")
+        if self._config.optimizer.tolerance is not None:
+            if self._method in ["mesh_adaptive_search", "asynch_pattern_search"]:
+                inputs.append(
+                    f"variable_tolerance = {self._config.optimizer.tolerance}"
+                )
+            else:
+                inputs.append(
+                    f"convergence_tolerance = {self._config.optimizer.tolerance}"
+                )
+        if self._config.optimizer.options:
+            assert isinstance(self._config.optimizer.options, list)
+            inputs.extend(
+                option
+                for option in self._config.optimizer.options
+                if (
+                    not option.strip().startswith("constraint_tolerance")
+                    or (
+                        self._method
+                        in {"conmin_mfd", "conmin_frcg", "asynch_pattern_search"}
+                    )
+                )
             )
-            inputs.append(f"{tolerance_option} = {convergence_tolerance}")
         if self._config.gradient.evaluation_policy == "speculative":
             inputs.append("speculative")
-        # Options are put in the method section:
-        return inputs + self._get_options(self._method)
-
-    def _get_options(self, algorithm: str) -> list[str]:
-        inputs: list[str] = []
-        if isinstance(self._config.optimizer.options, list):
-            try:
-                for option in self._config.optimizer.options:
-                    stripped = option.strip()
-                    if stripped.startswith("input_file"):
-                        continue
-                    if algorithm in [
-                        "conmin_mfd",
-                        "conmin_frcg",
-                    ] and stripped.startswith("constraint_tolerance"):
-                        continue
-                    inputs.append(f"{option}")
-            except TypeError as exc:
-                msg = "Cannot parse Dakota optimization options"
-                raise ValueError(msg) from exc
         return inputs
 
     def _get_variables_section(self, initial_values: NDArray[np.float64]) -> list[str]:
         inputs: list[str] = []
-        names = tuple(f"variable{idx}" for idx in range(initial_values.size))
         lower_bounds = self._config.variables.lower_bounds[self._config.variables.mask]
         upper_bounds = self._config.variables.upper_bounds[self._config.variables.mask]
         initial_values = initial_values[self._config.variables.mask]
-        names = tuple(
-            name
-            for name, enabled in zip(names, self._config.variables.mask, strict=True)
-            if enabled
-        )
         inputs.append(f"continuous_design = {initial_values.size}")
         inputs.append(
             "initial_point "
@@ -204,19 +185,16 @@ class DakotaOptimizer(Optimizer):
         inputs.append(
             "lower_bounds "
             + " ".join(
-                f"{bound:{_PRECISION}f}" if isfinite(bound) else f"-{_INF}"
+                f"{bound:{_PRECISION}f}" if isfinite(bound) else "-inf"
                 for bound in lower_bounds
             ),
         )
         inputs.append(
             "upper_bounds "
             + " ".join(
-                f"{bound:{_PRECISION}f}" if isfinite(bound) else f"+{_INF}"
+                f"{bound:{_PRECISION}f}" if isfinite(bound) else "inf"
                 for bound in upper_bounds
             ),
-        )
-        inputs.append(
-            "descriptors " + "  ".join(f"'{name}'" for name in names),
         )
         return inputs
 
@@ -237,8 +215,6 @@ class DakotaOptimizer(Optimizer):
                 coefficients = all_coefficients[ineq_idx, :]
                 lower_bounds = all_lower_bounds[ineq_idx]
                 upper_bounds = all_upper_bounds[ineq_idx]
-                lower_bounds[all_lower_bounds < -_INF] = -_INF
-                upper_bounds[all_upper_bounds > _INF] = _INF
                 # Add 0.0 to prevent -0.0 values:
                 coefficients += 0.0
                 lower_bounds += 0.0
@@ -252,14 +228,22 @@ class DakotaOptimizer(Optimizer):
                         for idx in range(lower_bounds.size)
                     ),
                 )
-                inputs.append(
-                    "linear_inequality_lower_bounds = "
-                    + " ".join(f"{value:{_PRECISION}f}" for value in lower_bounds),
-                )
-                inputs.append(
-                    "linear_inequality_upper_bounds = "
-                    + " ".join(f"{value:{_PRECISION}f}" for value in upper_bounds),
-                )
+                if np.any(np.isfinite(lower_bounds)):
+                    inputs.append(
+                        "linear_inequality_lower_bounds = "
+                        + " ".join(
+                            f"{value:{_PRECISION}f}" if isfinite(value) else "-inf"
+                            for value in lower_bounds
+                        ),
+                    )
+                if np.any(np.isfinite(upper_bounds)):
+                    inputs.append(
+                        "linear_inequality_upper_bounds = "
+                        + " ".join(
+                            f"{value:{_PRECISION}f}" if isfinite(value) else "inf"
+                            for value in upper_bounds
+                        ),
+                    )
 
             if np.any(eq_idx):
                 coefficients = all_coefficients[eq_idx, :]
@@ -284,27 +268,16 @@ class DakotaOptimizer(Optimizer):
         return inputs
 
     def _get_responses_section(self) -> list[str]:
-        inputs: list[str] = []
-        inputs.append("objective_function_scale_types 'value'")
-        inputs.append("objective_function_scales = 1.0")
+        inputs: list[str] = [
+            "objective_functions = 1",
+            "analytic_gradients",
+            "no_hessians",
+        ]
         if self._normalized_constraints is not None:
-            ineq = self._normalized_constraints.is_eq.count(False)
-            if ineq > 0:
+            if (ineq := self._normalized_constraints.is_eq.count(False)) > 0:
                 inputs.append(f"nonlinear_inequality_constraints = {ineq} ")
-                inputs.append(
-                    "nonlinear_inequality_lower_bounds " + " ".join(["0.0"] * ineq)
-                )
-                inputs.append(
-                    "nonlinear_inequality_upper_bounds " + " ".join([f"{_INF}"] * ineq)
-                )
-                inputs.append("nonlinear_inequality_scale_types 'value'")
-                inputs.append("nonlinear_inequality_scales" + " 1.0" * ineq)
-            eq = self._normalized_constraints.is_eq.count(True)
-            if eq > 0:
+            if (eq := self._normalized_constraints.is_eq.count(True)) > 0:
                 inputs.append(f"nonlinear_equality_constraints = {eq}")
-                inputs.append("nonlinear_equality_targets " + " ".join(["0.0"] * eq))
-                inputs.append("nonlinear_equality_scale_types 'value'")
-                inputs.append("nonlinear_equality_scales" + " 1.0" * eq)
         return inputs
 
     def _start(self, initial_values: NDArray[np.float64]) -> None:
@@ -312,7 +285,6 @@ class DakotaOptimizer(Optimizer):
         output_dir = create_output_path("dakota", self._output_dir)
         output_dir.mkdir()
         chdir(output_dir)
-
         try:
             self._start_direct_interface(initial_values)
         finally:
@@ -328,8 +300,8 @@ class DakotaOptimizer(Optimizer):
         )
         try:
             driver.run_dakota(
-                infile="dakota_Input.in",
-                stdout="Report.txt",
+                infile="dakota_input.in",
+                stdout="report.txt",
                 stderr="dakota_errors.txt",
             )
         except Exception as err:
@@ -382,53 +354,6 @@ class _DakotaDriver(DakotaBase):
         if kwargs["asv"][0] & 2:
             retval["fnGrads"] = gradient_result
         return retval
-
-    def run_dakota(
-        self,
-        infile: str = "dakota.in",
-        stdout: str | None = None,
-        stderr: str | None = None,
-        restart: int = 0,
-        throw_on_error: bool = True,  # noqa: FBT001,FBT002
-    ) -> None:
-        overridden_infile = self._override_input_file()
-        if overridden_infile is None:
-            self.input.write_input(infile, driver_instance=self)
-        else:
-            lines = []
-            with Path(overridden_infile).open("r", encoding="utf-8") as fp_in:
-                for line in fp_in:
-                    idx = line.find("analysis_components")
-                    if idx >= 0:
-                        ident = str(id(self))
-                        _USER_DATA[ident] = self
-                        lines.append(line[:idx] + f"analysis_components = '{ident}'\n")
-                    else:
-                        lines.append(line)
-            with Path(infile).open("w", encoding="utf-8") as fp_out:
-                fp_out.writelines(lines)
-        run_dakota(infile, stdout, stderr, restart, throw_on_error)
-
-    def _override_input_file(self) -> str | None:
-        input_file = None
-        if isinstance(self._config.optimizer.options, list):
-            input_file = next(
-                (
-                    option
-                    for option in self._config.optimizer.options
-                    if option.strip().startswith("input_file")
-                ),
-                None,
-            )
-        if input_file is not None:
-            split_input_file = input_file.split("=", 1)
-            if len(split_input_file) > 1:
-                path = Path(split_input_file[1].strip())
-                if path.is_file():
-                    return str(path)
-            msg = f"Invalid input_file option: {input_file}"
-            raise RuntimeError(msg)
-        return None
 
     def _compute_response(
         self,
