@@ -1,6 +1,5 @@
-from collections.abc import Callable
 from functools import partial
-from typing import Any, Sequence
+from typing import Any, Callable, Sequence
 
 import numpy as np
 import pytest
