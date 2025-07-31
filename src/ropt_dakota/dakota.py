@@ -33,6 +33,7 @@ _SUPPORTED_METHODS: Final = {
     "moga",
     "asynch_pattern_search",
 }
+_DEFAULT_METHOD: Final = "optpp_q_newton"
 
 
 class DakotaOptimizer(Optimizer):
@@ -82,7 +83,7 @@ class DakotaOptimizer(Optimizer):
 
         _, _, self._method = self._config.optimizer.method.lower().rpartition("/")
         if self._method == "default":
-            self._method = "optpp_q_newton"
+            self._method = _DEFAULT_METHOD
         if self._method not in _SUPPORTED_METHODS:
             msg = f"Dakota optimizer algorithm {self._method} is not supported"
             raise NotImplementedError(msg)
@@ -474,7 +475,7 @@ class DakotaOptimizerPlugin(OptimizerPlugin):
                     else True
                 )
             OptionsSchemaModel.model_validate(_OPTIONS_SCHEMA).get_options_model(
-                method
+                _DEFAULT_METHOD if method == "default" else method
             ).model_validate(options_dict)
 
 
