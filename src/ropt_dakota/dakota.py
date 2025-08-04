@@ -474,6 +474,7 @@ class DakotaOptimizerPlugin(OptimizerPlugin):
                     if len(split_option) > 1 and split_option[1].strip()
                     else True
                 )
+            *_, method = method.rpartition("/")
             OptionsSchemaModel.model_validate(_OPTIONS_SCHEMA).get_options_model(
                 _DEFAULT_METHOD if method == "default" else method
             ).model_validate(options_dict)
