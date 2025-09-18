@@ -76,8 +76,8 @@ strict = true
 module = ["dakota"]
 ignore_missing_imports = true
 
-[tool.uv]
-dev-dependencies = [
+[dependency-groups]
+dev = [
     "mike",
     "mkdocs",
     "mkdocs-material",
