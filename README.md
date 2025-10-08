@@ -13,7 +13,7 @@ information.
 
 
 ## Dependencies
-This code has been tested with Python version 3.11.
+This code has been tested with Python versions 3.11-3.13.
 
 The plugin is based on the [Dakota](https://dakota.sandia.gov/) optimizer and
 depends on the [Carolina](https://github.com/equinor/Carolina) Python wrapper.

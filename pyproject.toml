@@ -12,6 +12,8 @@ classifiers = [
     "Natural Language :: English",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering",
 ]
 requires-python = ">=3.11"
@@ -52,7 +54,7 @@ exclude = ["src/ropt_dakota/version.py", "build"]
 select = ["ALL"]
 ignore = [
     "COM812", # missing-trailing-comma
-    "E501",   # line-too-lone
+    "E501",   # line-too-long
     "S101",   # assert
 ]
 
