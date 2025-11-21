@@ -7,11 +7,10 @@ from numpy.typing import ArrayLike, NDArray
 from pydantic import ValidationError
 from ropt.config import EnOptConfig
 from ropt.enums import EventType, ExitCode
-from ropt.plugins import PluginManager
 from ropt.results import FunctionResults, GradientResults, Results
 from ropt.transforms import OptModelTransforms
 from ropt.transforms.base import NonLinearConstraintTransform, ObjectiveTransform
-from ropt.workflow import BasicOptimizer, Event
+from ropt.workflow import BasicOptimizer, Event, validate_optimizer_options
 
 from ropt_dakota.dakota import _SUPPORTED_METHODS
 
@@ -41,9 +40,7 @@ def test_dakota_invalid_options(enopt_config: Any) -> None:
         "max_iterations = 0",
         "merit_function el_bakry",
     ]
-    PluginManager().get_plugin("optimizer", "optpp_q_newton").validate_options(
-        "optpp_q_newton", enopt_config["optimizer"]["options"]
-    )
+    validate_optimizer_options("optpp_q_newton", enopt_config["optimizer"]["options"])
 
     enopt_config["optimizer"]["options"] = [
         "max_iterations = 0",
@@ -53,7 +50,7 @@ def test_dakota_invalid_options(enopt_config: Any) -> None:
     with pytest.raises(
         ValidationError, match=r"Input should be 'value_based_line_search',"
     ):
-        PluginManager().get_plugin("optimizer", "optpp_q_newton").validate_options(
+        validate_optimizer_options(
             "optpp_q_newton", enopt_config["optimizer"]["options"]
         )
 
@@ -66,7 +63,7 @@ def test_dakota_invalid_options(enopt_config: Any) -> None:
     with pytest.raises(
         ValidationError, match=r"Unknown or unsupported option\(s\): `foo`, `bar`"
     ):
-        PluginManager().get_plugin("optimizer", "optpp_q_newton").validate_options(
+        validate_optimizer_options(
             "optpp_q_newton", enopt_config["optimizer"]["options"]
         )
 
