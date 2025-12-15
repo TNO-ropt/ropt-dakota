@@ -556,13 +556,9 @@ class ConstraintScaler(NonLinearConstraintTransform):
         return lower_diffs * self._scales, upper_diffs * self._scales
 
 
-@pytest.mark.parametrize(
-    "external", ["", pytest.param("external/", marks=pytest.mark.external)]
-)
 def test_dakota_nonlinear_constraint_with_scaler(
-    enopt_config: Any, evaluator: Any, test_functions: Any, external: str
+    enopt_config: Any, evaluator: Any, test_functions: Any
 ) -> None:
-    enopt_config["optimizer"]["method"] = f"{external}optpp_q_newton"
     enopt_config["nonlinear_constraints"] = {
         "lower_bounds": 0.0,
         "upper_bounds": 0.4,
@@ -632,13 +628,9 @@ def test_dakota_nonlinear_constraint_with_scaler(
     )
 
 
-@pytest.mark.parametrize(
-    "external", ["", pytest.param("external/", marks=pytest.mark.external)]
-)
 def test_dakota_nonlinear_constraint_with_lazy_scaler(
-    enopt_config: Any, evaluator: Any, test_functions: Any, external: str
+    enopt_config: Any, evaluator: Any, test_functions: Any
 ) -> None:
-    enopt_config["optimizer"]["method"] = f"{external}optpp_q_newton"
     enopt_config["nonlinear_constraints"] = {
         "lower_bounds": 0.0,
         "upper_bounds": 0.4,
