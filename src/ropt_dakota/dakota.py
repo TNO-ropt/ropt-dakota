@@ -146,7 +146,7 @@ class DakotaOptimizer(Optimizer):
         ):
             inputs.append(f"max_iterations = {self._config.optimizer.max_iterations}")
         if self._config.optimizer.tolerance is not None:
-            if self._method in ["mesh_adaptive_search", "asynch_pattern_search"]:
+            if self._method in {"mesh_adaptive_search", "asynch_pattern_search"}:
                 inputs.append(
                     f"variable_tolerance = {self._config.optimizer.tolerance}"
                 )
@@ -176,26 +176,24 @@ class DakotaOptimizer(Optimizer):
         lower_bounds = self._config.variables.lower_bounds[self._config.variables.mask]
         upper_bounds = self._config.variables.upper_bounds[self._config.variables.mask]
         initial_values = initial_values[self._config.variables.mask]
-        inputs.append(f"continuous_design = {initial_values.size}")
-        inputs.append(
-            "initial_point "
-            + " ".join(
-                f"{initial_value:{_PRECISION}f}" for initial_value in initial_values
-            ),
-        )
-        inputs.append(
-            "lower_bounds "
-            + " ".join(
-                f"{bound:{_PRECISION}f}" if isfinite(bound) else "-inf"
-                for bound in lower_bounds
-            ),
-        )
-        inputs.append(
-            "upper_bounds "
-            + " ".join(
-                f"{bound:{_PRECISION}f}" if isfinite(bound) else "inf"
-                for bound in upper_bounds
-            ),
+        inputs.extend(
+            (
+                f"continuous_design = {initial_values.size}",
+                "initial_point "
+                + " ".join(
+                    f"{initial_value:{_PRECISION}f}" for initial_value in initial_values
+                ),
+                "lower_bounds "
+                + " ".join(
+                    f"{bound:{_PRECISION}f}" if isfinite(bound) else "-inf"
+                    for bound in lower_bounds
+                ),
+                "upper_bounds "
+                + " ".join(
+                    f"{bound:{_PRECISION}f}" if isfinite(bound) else "inf"
+                    for bound in upper_bounds
+                ),
+            )
         )
         return inputs
 
@@ -252,18 +250,19 @@ class DakotaOptimizer(Optimizer):
                 # Add 0.0 to prevent -0.0 values:
                 coefficients += 0.0
                 bounds += 0.0
-                inputs.append(
-                    "linear_equality_constraint_matrix = "
-                    + "\n".join(
-                        " ".join(
-                            f"{value:{_PRECISION}f}" for value in coefficients[idx, :]
-                        )
-                        for idx in range(bounds.size)
-                    ),
-                )
-                inputs.append(
-                    "linear_equality_targets ="
-                    + " ".join(f"{value:{_PRECISION}f}" for value in bounds),
+                inputs.extend(
+                    (
+                        "linear_equality_constraint_matrix = "
+                        + "\n".join(
+                            " ".join(
+                                f"{value:{_PRECISION}f}"
+                                for value in coefficients[idx, :]
+                            )
+                            for idx in range(bounds.size)
+                        ),
+                        "linear_equality_targets ="
+                        + " ".join(f"{value:{_PRECISION}f}" for value in bounds),
+                    )
                 )
 
         return inputs
@@ -335,8 +334,8 @@ class _DakotaDriver(DakotaBase):
             if len(set(asv)) > 1:
                 msg = "Non-unique ASV elements different from 0 are not yet supported."
                 raise NotImplementedError(msg)  # noqa: TRY301
-            return_functions = asv[0] in (1, 3)
-            compute_gradients = asv[0] in (2, 3)
+            return_functions = asv[0] in {1, 3}
+            compute_gradients = asv[0] in {2, 3}
             function_result, gradient_result = self._compute_response(
                 np.concatenate(
                     (kwargs["cv"], kwargs["div"].astype(np.float64), kwargs["drv"]),
@@ -439,7 +438,7 @@ class DakotaOptimizerPlugin(OptimizerPlugin):
         See the [ropt.plugins.optimizer.base.OptimizerPlugin][] abstract base class.
 
         # noqa
-        """
+        """  # noqa: DOC201
         return DakotaOptimizer(config, optimizer_callback)
 
     @classmethod
@@ -449,7 +448,7 @@ class DakotaOptimizerPlugin(OptimizerPlugin):
         See the [ropt.plugins.optimizer.base.OptimizerPlugin][] abstract base class.
 
         # noqa
-        """
+        """  # noqa: DOC201
         return method.lower() in (_SUPPORTED_METHODS | {"default"})
 
     @classmethod
@@ -461,7 +460,7 @@ class DakotaOptimizerPlugin(OptimizerPlugin):
         See the [ropt.plugins.optimizer.base.OptimizerPlugin][] abstract base class.
 
         # noqa
-        """
+        """  # noqa: DOC501
         if options is not None:
             if not isinstance(options, list):
                 msg = "Dakota optimizer options must be a list of strings"

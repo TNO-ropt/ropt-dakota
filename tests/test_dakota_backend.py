@@ -1,3 +1,4 @@
+import operator
 from pathlib import Path
 from typing import Any
 
@@ -98,7 +99,7 @@ def test_dakota_bound_constraint(
     optimizer.run(initial_values)
     assert optimizer.results is not None
     # Some methods do not easily convert, we just test if the ran:
-    if method not in ("coliny_ea", "moga"):
+    if method not in {"coliny_ea", "moga"}:
         assert np.allclose(
             optimizer.results.evaluations.variables, [0.0, 0.0, 0.2], atol=0.02
         )
@@ -249,7 +250,7 @@ def test_dakota_ineq_nonlinear_constraints_two_sided(
     }
     test_functions = (
         *test_functions,
-        lambda variables: variables[1],
+        operator.itemgetter(1),
         lambda variables: variables[0] + variables[2],
     )
 
@@ -274,7 +275,7 @@ def test_dakota_ineq_nonlinear_constraints_eq_ineq(
     }
     test_functions = (
         *test_functions,
-        lambda variables: variables[1],
+        operator.itemgetter(1),
         lambda variables: variables[0] + variables[2],
     )
 
