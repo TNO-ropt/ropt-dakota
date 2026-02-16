@@ -1,3 +1,5 @@
+# ruff: noqa: RUF069
+
 from pathlib import Path
 from typing import Any
 

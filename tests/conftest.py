@@ -43,11 +43,10 @@ def fixture_test_functions() -> tuple[_Function, _Function]:
 
 def _function(
     variables: NDArray[np.float64],
-    realization: int,
-    _: int,
-    /,
     *,
+    realization: int,
     test_functions: list[_Function],
+    **kwargs: Any,  # noqa: ARG001
 ) -> NDArray[np.float64]:
     return np.fromiter(
         (func(variables, realization) for func in test_functions), dtype=np.float64
