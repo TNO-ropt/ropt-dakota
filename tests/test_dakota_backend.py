@@ -9,10 +9,11 @@ from numpy.typing import ArrayLike, NDArray
 from pydantic import ValidationError
 from ropt.config import EnOptConfig
 from ropt.enums import EventType, ExitCode
+from ropt.events import Event
 from ropt.results import FunctionResults, GradientResults, Results
 from ropt.transforms import OptModelTransforms
 from ropt.transforms.base import NonLinearConstraintTransform, ObjectiveTransform
-from ropt.workflow import BasicOptimizer, Event, validate_optimizer_options
+from ropt.workflow import BasicOptimizer, validate_optimizer_options
 
 from ropt_dakota.dakota import _SUPPORTED_METHODS
 
