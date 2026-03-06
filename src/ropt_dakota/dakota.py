@@ -12,7 +12,7 @@ from dakota import DakotaBase, DakotaInput
 from numpy.typing import NDArray
 from ropt.config import EnOptConfig
 from ropt.config.options import OptionsSchemaModel
-from ropt.optimization import OptimizerCallback
+from ropt.core import OptimizerCallback
 from ropt.plugins.optimizer.base import Optimizer, OptimizerPlugin
 from ropt.plugins.optimizer.utils import (
     NormalizedConstraints,

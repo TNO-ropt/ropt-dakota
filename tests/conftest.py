@@ -5,7 +5,7 @@ from typing import Any
 import numpy as np
 import pytest
 from numpy.typing import NDArray
-from ropt.workflow import create_evaluator
+from ropt.workflow.evaluators import FunctionEvaluator
 
 _Function = Callable[[NDArray[np.float64], int], float]
 
@@ -56,8 +56,7 @@ def _function(
 @pytest.fixture(scope="session")
 def evaluator(test_functions: Any) -> Any:
     def _evaluator(test_functions: list[_Function] = test_functions) -> Any:
-        return create_evaluator(
-            "function_evaluator",
+        return FunctionEvaluator(
             function=partial(_function, test_functions=test_functions),
         )
 

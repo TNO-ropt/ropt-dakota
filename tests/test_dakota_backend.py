@@ -8,11 +8,12 @@ import pytest
 from numpy.typing import ArrayLike, NDArray
 from pydantic import ValidationError
 from ropt.config import EnOptConfig
-from ropt.enums import EventType, ExitCode
+from ropt.enums import EnOptEventType, ExitCode
+from ropt.events import EnOptEvent
 from ropt.results import FunctionResults, GradientResults, Results
 from ropt.transforms import OptModelTransforms
 from ropt.transforms.base import NonLinearConstraintTransform, ObjectiveTransform
-from ropt.workflow import BasicOptimizer, Event, validate_optimizer_options
+from ropt.workflow import BasicOptimizer, validate_optimizer_options
 
 from ropt_dakota.dakota import _SUPPORTED_METHODS
 
@@ -354,7 +355,7 @@ def test_dakota_optimizer_variables_subset(enopt_config: Any, evaluator: Any) ->
         for item in results:
             if isinstance(item, GradientResults):
                 assert item.gradients is not None
-                assert item.gradients.weighted_objective[1] == 0.0
+                assert item.gradients.target_objective[1] == 0.0
                 assert np.all(np.equal(item.gradients.objectives[:, 1], 0.0))
 
     optimizer = BasicOptimizer(enopt_config, evaluator())
@@ -447,18 +448,16 @@ def test_dakota_objective_with_scaler(
 
     checked = False
 
-    def check_value(event: Event) -> None:
+    def check_value(event: EnOptEvent) -> None:
         nonlocal checked
-        results = event.data.get("results", ())
+        results = event.results
         for item in results:
             if isinstance(item, FunctionResults) and not checked:
                 checked = True
                 assert item.functions is not None
                 assert item.functions.objectives is not None
                 assert np.allclose(item.functions.objectives[-1], 1.0)
-                transformed = item.transform_from_optimizer(
-                    event.data["config"], event.data["transforms"]
-                )
+                transformed = item.transform_from_optimizer(event.config)
                 assert transformed.functions is not None
                 assert transformed.functions.objectives is not None
                 assert np.allclose(transformed.functions.objectives[-1], init1)
@@ -467,7 +466,7 @@ def test_dakota_objective_with_scaler(
         enopt_config, evaluator([function1, function2]), transforms=transforms
     )
     optimizer2._observers.append(  # noqa: SLF001
-        (EventType.FINISHED_EVALUATION, check_value)
+        (EnOptEventType.FINISHED_EVALUATION, check_value)
     )
     optimizer2.run(initial_values)
     assert optimizer2.results is not None
@@ -502,18 +501,16 @@ def test_dakota_objective_with_lazy_scaler(
 
     checked = False
 
-    def check_value(event: Event) -> None:
+    def check_value(event: EnOptEvent) -> None:
         nonlocal checked
-        results = event.data.get("results", ())
+        results = event.results
         for item in results:
             if isinstance(item, FunctionResults) and not checked:
                 checked = True
                 assert item.functions is not None
                 assert item.functions.objectives is not None
                 assert np.allclose(item.functions.objectives[-1], 1.0)
-                transformed = item.transform_from_optimizer(
-                    event.data["config"], event.data["transforms"]
-                )
+                transformed = item.transform_from_optimizer(event.config)
                 assert transformed.functions is not None
                 assert transformed.functions.objectives is not None
                 assert np.allclose(transformed.functions.objectives[-1], init1)
@@ -522,7 +519,7 @@ def test_dakota_objective_with_lazy_scaler(
         enopt_config, evaluator([function1, function2]), transforms=transforms
     )
     optimizer2._observers.append(  # noqa: SLF001
-        (EventType.FINISHED_EVALUATION, check_value)
+        (EnOptEventType.FINISHED_EVALUATION, check_value)
     )
     optimizer2.run(initial_values)
     assert optimizer2.results is not None
@@ -592,18 +589,16 @@ def test_dakota_nonlinear_constraint_with_scaler(
 
     check = True
 
-    def check_constraints(event: Event) -> None:
+    def check_constraints(event: EnOptEvent) -> None:
         nonlocal check
-        results = event.data.get("results", ())
+        results = event.results
         for item in results:
             if isinstance(item, FunctionResults) and check:
                 check = False
                 assert item.functions is not None
                 assert item.functions.constraints is not None
                 assert np.allclose(item.functions.constraints, 1.0)
-                transformed = item.transform_from_optimizer(
-                    event.data["config"], event.data["transforms"]
-                )
+                transformed = item.transform_from_optimizer(event.config)
                 assert transformed.functions is not None
                 assert transformed.functions.constraints is not None
                 assert np.allclose(transformed.functions.constraints, scales)
@@ -612,7 +607,7 @@ def test_dakota_nonlinear_constraint_with_scaler(
         enopt_config, evaluator(functions), transforms=transforms
     )
     optimizer2._observers.append(  # noqa: SLF001
-        (EventType.FINISHED_EVALUATION, check_constraints)
+        (EnOptEventType.FINISHED_EVALUATION, check_constraints)
     )
     optimizer2.run(initial_values)
     assert optimizer2.results is not None
@@ -671,10 +666,10 @@ def test_dakota_nonlinear_constraint_with_lazy_scaler(
 
     check = True
 
-    def check_constraints(event: Event) -> None:
+    def check_constraints(event: EnOptEvent) -> None:
         nonlocal check
-        results = event.data.get("results", ())
-        config = event.data["config"]
+        results = event.results
+        config = event.config
         for item in results:
             if isinstance(item, FunctionResults) and check:
                 check = False
@@ -688,9 +683,7 @@ def test_dakota_nonlinear_constraint_with_lazy_scaler(
                 assert item.functions is not None
                 assert item.functions.constraints is not None
                 assert np.allclose(item.functions.constraints, 1.0)
-                transformed = item.transform_from_optimizer(
-                    event.data["config"], event.data["transforms"]
-                )
+                transformed = item.transform_from_optimizer(event.config)
                 assert transformed.functions is not None
                 assert transformed.functions.constraints is not None
                 assert np.allclose(transformed.functions.constraints, scales)
@@ -699,7 +692,7 @@ def test_dakota_nonlinear_constraint_with_lazy_scaler(
         enopt_config, evaluator(functions), transforms=transforms
     )
     optimizer2._observers.append(  # noqa: SLF001
-        (EventType.FINISHED_EVALUATION, check_constraints)
+        (EnOptEventType.FINISHED_EVALUATION, check_constraints)
     )
     optimizer2.run(initial_values)
     assert optimizer2.results is not None
