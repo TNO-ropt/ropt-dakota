@@ -13,12 +13,13 @@ from numpy.typing import NDArray
 from ropt.config import EnOptConfig
 from ropt.config.options import OptionsSchemaModel
 from ropt.core import OptimizerCallback
-from ropt.plugins.optimizer.base import Optimizer, OptimizerPlugin
-from ropt.plugins.optimizer.utils import (
+from ropt.optimizer import Optimizer
+from ropt.optimizer.utils import (
     NormalizedConstraints,
     create_output_path,
     get_masked_linear_constraints,
 )
+from ropt.plugins.optimizer import OptimizerPlugin
 
 _PRECISION: Final[int] = 8
 
@@ -62,7 +63,7 @@ class DakotaOptimizer(Optimizer):
     ) -> None:
         """Initialize the optimizer implemented by the Dakota plugin.
 
-        See the [ropt.plugins.optimizer.base.Optimizer][] abstract base class.
+        See the [ropt.optimizer.Optimizer][] abstract base class.
 
         # noqa
         """
@@ -91,7 +92,7 @@ class DakotaOptimizer(Optimizer):
     def start(self, initial_values: NDArray[np.float64]) -> None:
         """Start the optimization.
 
-        See the [ropt.plugins.optimizer.base.Optimizer][] abstract base class.
+        See the [ropt.optimizer.Optimizer][] abstract base class.
 
         # noqa
         """
@@ -107,7 +108,7 @@ class DakotaOptimizer(Optimizer):
     def allow_nan(self) -> bool:
         """Whether NaN is allowed.
 
-        See the [ropt.plugins.optimizer.base.Optimizer][] abstract base class.
+        See the [ropt.optimizer.Optimizer][] abstract base class.
 
         # noqa
         """
@@ -117,7 +118,7 @@ class DakotaOptimizer(Optimizer):
     def is_parallel(self) -> bool:
         """Whether the current run is parallel.
 
-        See the [ropt.plugins.optimizer.base.Optimizer][] abstract base class.
+        See the [ropt.optimizer.Optimizer][] abstract base class.
 
         # noqa
         """
@@ -435,7 +436,7 @@ class DakotaOptimizerPlugin(OptimizerPlugin):
     ) -> DakotaOptimizer:
         """Initialize the optimizer plugin.
 
-        See the [ropt.plugins.optimizer.base.OptimizerPlugin][] abstract base class.
+        See the [ropt.plugins.optimizer.OptimizerPlugin][] abstract base class.
 
         # noqa
         """  # noqa: DOC201
@@ -445,7 +446,7 @@ class DakotaOptimizerPlugin(OptimizerPlugin):
     def is_supported(cls, method: str) -> bool:
         """Check if a method is supported.
 
-        See the [ropt.plugins.optimizer.base.OptimizerPlugin][] abstract base class.
+        See the [ropt.plugins.optimizer.OptimizerPlugin][] abstract base class.
 
         # noqa
         """  # noqa: DOC201
@@ -457,7 +458,7 @@ class DakotaOptimizerPlugin(OptimizerPlugin):
     ) -> None:
         """Validate the options of a given method.
 
-        See the [ropt.plugins.optimizer.base.OptimizerPlugin][] abstract base class.
+        See the [ropt.plugins.optimizer.OptimizerPlugin][] abstract base class.
 
         # noqa
         """  # noqa: DOC501
