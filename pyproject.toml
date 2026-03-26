@@ -25,8 +25,8 @@ dependencies = ["numpy", "carolina"]
 "Repository" = "https://github.com/TNO-ropt/ropt-dakota"
 "Bug Tracker" = "https://github.com/TNO-ropt/ropt-dakota/issues"
 
-[project.entry-points."ropt.plugins.optimizer"]
-dakota = "ropt_dakota.dakota:DakotaOptimizerPlugin"
+[project.entry-points."ropt.plugins.backend"]
+dakota = "ropt_dakota.dakota:DakotaBackendPlugin"
 
 [tool.setuptools.packages.find]
 where = ["src"]

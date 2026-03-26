@@ -9,7 +9,7 @@ from numpy.typing import NDArray
 from pydantic import ValidationError
 from ropt.enums import ExitCode
 from ropt.results import GradientResults, Results
-from ropt.workflow import BasicOptimizer, validate_optimizer_options
+from ropt.workflow import BasicOptimizer, validate_backend_options
 
 from ropt_dakota.dakota import _SUPPORTED_METHODS
 
@@ -23,7 +23,7 @@ def enopt_config_fixture() -> dict[str, Any]:
             "variable_count": len(initial_values),
             "perturbation_magnitudes": 0.01,
         },
-        "optimizer": {
+        "backend": {
             "method": "dakota/default",
             "tolerance": 1e-6,
         },
@@ -34,14 +34,14 @@ def enopt_config_fixture() -> dict[str, Any]:
 
 
 def test_dakota_invalid_options(enopt_config: Any) -> None:
-    enopt_config["optimizer"]["method"] = "optpp_q_newton"
-    enopt_config["optimizer"]["options"] = [
+    enopt_config["backend"]["method"] = "optpp_q_newton"
+    enopt_config["backend"]["options"] = [
         "max_iterations = 0",
         "merit_function el_bakry",
     ]
-    validate_optimizer_options("optpp_q_newton", enopt_config["optimizer"]["options"])
+    validate_backend_options("optpp_q_newton", enopt_config["backend"]["options"])
 
-    enopt_config["optimizer"]["options"] = [
+    enopt_config["backend"]["options"] = [
         "max_iterations = 0",
         "search_method = 1",
         "merit_function el_bakry",
@@ -49,11 +49,9 @@ def test_dakota_invalid_options(enopt_config: Any) -> None:
     with pytest.raises(
         ValidationError, match=r"Input should be 'value_based_line_search',"
     ):
-        validate_optimizer_options(
-            "optpp_q_newton", enopt_config["optimizer"]["options"]
-        )
+        validate_backend_options("optpp_q_newton", enopt_config["backend"]["options"])
 
-    enopt_config["optimizer"]["options"] = [
+    enopt_config["backend"]["options"] = [
         "max_iterations = 0",
         "foo = xyz",
         "bar",
@@ -62,16 +60,14 @@ def test_dakota_invalid_options(enopt_config: Any) -> None:
     with pytest.raises(
         ValidationError, match=r"Unknown or unsupported option\(s\): `foo`, `bar`"
     ):
-        validate_optimizer_options(
-            "optpp_q_newton", enopt_config["optimizer"]["options"]
-        )
+        validate_backend_options("optpp_q_newton", enopt_config["backend"]["options"])
 
 
 @pytest.mark.parametrize(
     "external", ["", pytest.param("external/", marks=pytest.mark.external)]
 )
 def test_dakota_unconstrained(enopt_config: Any, evaluator: Any, external: str) -> None:
-    enopt_config["optimizer"]["method"] = f"{external}optpp_q_newton"
+    enopt_config["backend"]["method"] = f"{external}optpp_q_newton"
     optimizer = BasicOptimizer(enopt_config, evaluator())
     optimizer.run(initial_values)
     assert optimizer.results is not None
@@ -90,7 +86,7 @@ def test_dakota_unconstrained(enopt_config: Any, evaluator: Any, external: str) 
 def test_dakota_bound_constraint(
     enopt_config: Any, method: str, evaluator: Any
 ) -> None:
-    enopt_config["optimizer"]["method"] = f"dakota/{method}"
+    enopt_config["backend"]["method"] = f"dakota/{method}"
     enopt_config["variables"]["lower_bounds"] = -1.0
     enopt_config["variables"]["upper_bounds"] = [1.0, 1.0, 0.2]
     optimizer = BasicOptimizer(enopt_config, evaluator())
@@ -389,8 +385,8 @@ def test_dakota_optimizer_variables_subset_linear_constraints(
 def test_dakota_output_dir(tmp_path: Path, enopt_config: Any, evaluator: Any) -> None:
     output_dir = tmp_path / "outputdir"
     output_dir.mkdir()
-    enopt_config["optimizer"]["output_dir"] = output_dir
-    enopt_config["optimizer"]["max_functions"] = 1
+    enopt_config["backend"]["output_dir"] = output_dir
+    enopt_config["backend"]["max_functions"] = 1
     optimizer = BasicOptimizer(enopt_config, evaluator())
     optimizer.run(initial_values)
     assert (output_dir / "dakota").exists()

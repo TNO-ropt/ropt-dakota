@@ -9,6 +9,6 @@ workflows and is extensible through its plugin architecture. Installing
 
 ## Reference
 
-::: ropt_dakota.dakota.DakotaOptimizer
+::: ropt_dakota.dakota.DakotaBackend
     options:
         members: False

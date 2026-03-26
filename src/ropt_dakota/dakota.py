@@ -10,16 +10,16 @@ from typing import Any, Final, Literal
 import numpy as np
 from dakota import DakotaBase, DakotaInput
 from numpy.typing import NDArray
-from ropt.config import EnOptConfig
-from ropt.config.options import OptionsSchemaModel
-from ropt.core import OptimizerCallback
-from ropt.optimizer import Optimizer
-from ropt.optimizer.utils import (
+from ropt.backend import Backend
+from ropt.backend.utils import (
     NormalizedConstraints,
     create_output_path,
     get_masked_linear_constraints,
 )
-from ropt.plugins.optimizer import OptimizerPlugin
+from ropt.config import EnOptConfig
+from ropt.config.options import OptionsSchemaModel
+from ropt.core import OptimizerCallback
+from ropt.plugins.backend import BackendPlugin
 
 _PRECISION: Final[int] = 8
 
@@ -37,19 +37,19 @@ _SUPPORTED_METHODS: Final = {
 _DEFAULT_METHOD: Final = "optpp_q_newton"
 
 
-class DakotaOptimizer(Optimizer):
+class DakotaBackend(Backend):
     """Dakota optimization backend for ropt.
 
     This class provides an interface to several optimization algorithms from
     [`Dakota`](https://snl-dakota.github.io/), enabling their use within `ropt`.
 
     To select an optimizer, set the `method` field within the
-    [`optimizer`][ropt.config.OptimizerConfig] section of the
+    [`optimizer`][ropt.config.BackendConfig] section of the
     [`EnOptConfig`][ropt.config.EnOptConfig] configuration object to the
     desired algorithm's name. Most methods support the general options defined
     in the [`EnOptConfig`][ropt.config.EnOptConfig] object. For
     algorithm-specific options, use the `options` dictionary within the
-    [`optimizer`][ropt.config.OptimizerConfig] section.
+    [`optimizer`][ropt.config.BackendConfig] section.
 
     The table below lists the included methods together with the method-specific
     options that are supported. Click on the method name to consult the
@@ -63,7 +63,7 @@ class DakotaOptimizer(Optimizer):
     ) -> None:
         """Initialize the optimizer implemented by the Dakota plugin.
 
-        See the [ropt.optimizer.Optimizer][] abstract base class.
+        See the [ropt.backend.Backend][] abstract base class.
 
         # noqa
         """
@@ -82,7 +82,7 @@ class DakotaOptimizer(Optimizer):
         else:
             self._normalized_constraints = None
 
-        _, _, self._method = self._config.optimizer.method.lower().rpartition("/")
+        _, _, self._method = self._config.backend.method.lower().rpartition("/")
         if self._method == "default":
             self._method = _DEFAULT_METHOD
         if self._method not in _SUPPORTED_METHODS:
@@ -92,23 +92,23 @@ class DakotaOptimizer(Optimizer):
     def start(self, initial_values: NDArray[np.float64]) -> None:
         """Start the optimization.
 
-        See the [ropt.optimizer.Optimizer][] abstract base class.
+        See the [ropt.backend.Backend][] abstract base class.
 
         # noqa
         """
-        if self._config.optimizer.output_dir is None:
+        if self._config.backend.output_dir is None:
             with TemporaryDirectory() as output_dir:
                 self._output_dir = Path(output_dir)
                 self._start(initial_values)
         else:
-            self._output_dir = self._config.optimizer.output_dir
+            self._output_dir = self._config.backend.output_dir
             self._start(initial_values)
 
     @property
     def allow_nan(self) -> bool:
         """Whether NaN is allowed.
 
-        See the [ropt.optimizer.Optimizer][] abstract base class.
+        See the [ropt.backend.Backend][] abstract base class.
 
         # noqa
         """
@@ -118,7 +118,7 @@ class DakotaOptimizer(Optimizer):
     def is_parallel(self) -> bool:
         """Whether the current run is parallel.
 
-        See the [ropt.optimizer.Optimizer][] abstract base class.
+        See the [ropt.backend.Backend][] abstract base class.
 
         # noqa
         """
@@ -142,24 +142,22 @@ class DakotaOptimizer(Optimizer):
     def _get_method_section(self) -> list[str]:
         inputs: list[str] = [self._method]
         if (
-            self._config.optimizer.max_iterations is not None
+            self._config.backend.max_iterations is not None
             and self._method != "asynch_pattern_search"
         ):
-            inputs.append(f"max_iterations = {self._config.optimizer.max_iterations}")
-        if self._config.optimizer.tolerance is not None:
+            inputs.append(f"max_iterations = {self._config.backend.max_iterations}")
+        if self._config.backend.tolerance is not None:
             if self._method in {"mesh_adaptive_search", "asynch_pattern_search"}:
-                inputs.append(
-                    f"variable_tolerance = {self._config.optimizer.tolerance}"
-                )
+                inputs.append(f"variable_tolerance = {self._config.backend.tolerance}")
             else:
                 inputs.append(
-                    f"convergence_tolerance = {self._config.optimizer.tolerance}"
+                    f"convergence_tolerance = {self._config.backend.tolerance}"
                 )
-        if self._config.optimizer.options:
-            assert isinstance(self._config.optimizer.options, list)
+        if self._config.backend.options:
+            assert isinstance(self._config.backend.options, list)
             inputs.extend(
                 option
-                for option in self._config.optimizer.options
+                for option in self._config.backend.options
                 if (
                     not option.strip().startswith("constraint_tolerance")
                     or (
@@ -427,26 +425,26 @@ class _DakotaDriver(DakotaBase):
         return functions, gradients
 
 
-class DakotaOptimizerPlugin(OptimizerPlugin):
+class DakotaBackendPlugin(BackendPlugin):
     """Plugin class for optimization via Dakota."""
 
     @classmethod
     def create(
         cls, config: EnOptConfig, optimizer_callback: OptimizerCallback
-    ) -> DakotaOptimizer:
+    ) -> DakotaBackend:
         """Initialize the optimizer plugin.
 
-        See the [ropt.plugins.optimizer.OptimizerPlugin][] abstract base class.
+        See the [ropt.plugins.backend.BackendPlugin][] abstract base class.
 
         # noqa
         """  # noqa: DOC201
-        return DakotaOptimizer(config, optimizer_callback)
+        return DakotaBackend(config, optimizer_callback)
 
     @classmethod
     def is_supported(cls, method: str) -> bool:
         """Check if a method is supported.
 
-        See the [ropt.plugins.optimizer.OptimizerPlugin][] abstract base class.
+        See the [ropt.plugins.backend.BackendPlugin][] abstract base class.
 
         # noqa
         """  # noqa: DOC201
@@ -458,7 +456,7 @@ class DakotaOptimizerPlugin(OptimizerPlugin):
     ) -> None:
         """Validate the options of a given method.
 
-        See the [ropt.plugins.optimizer.OptimizerPlugin][] abstract base class.
+        See the [ropt.plugins.backend.BackendPlugin][] abstract base class.
 
         # noqa
         """  # noqa: DOC501
