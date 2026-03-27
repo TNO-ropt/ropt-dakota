@@ -25,7 +25,7 @@ def enopt_config_fixture() -> dict[str, Any]:
         },
         "backend": {
             "method": "dakota/default",
-            "tolerance": 1e-6,
+            "convergence_tolerance": 1e-6,
         },
         "objectives": {
             "weights": [0.75, 0.25],
@@ -386,7 +386,7 @@ def test_dakota_output_dir(tmp_path: Path, enopt_config: Any, evaluator: Any) ->
     output_dir = tmp_path / "outputdir"
     output_dir.mkdir()
     enopt_config["backend"]["output_dir"] = output_dir
-    enopt_config["backend"]["max_functions"] = 1
+    enopt_config["optimizer"] = {"max_functions": 1}
     optimizer = BasicOptimizer(enopt_config, evaluator())
     optimizer.run(initial_values)
     assert (output_dir / "dakota").exists()

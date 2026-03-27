@@ -146,12 +146,14 @@ class DakotaBackend(Backend):
             and self._method != "asynch_pattern_search"
         ):
             inputs.append(f"max_iterations = {self._config.backend.max_iterations}")
-        if self._config.backend.tolerance is not None:
+        if self._config.backend.convergence_tolerance is not None:
             if self._method in {"mesh_adaptive_search", "asynch_pattern_search"}:
-                inputs.append(f"variable_tolerance = {self._config.backend.tolerance}")
+                inputs.append(
+                    f"variable_tolerance = {self._config.backend.convergence_tolerance}"
+                )
             else:
                 inputs.append(
-                    f"convergence_tolerance = {self._config.backend.tolerance}"
+                    f"convergence_tolerance = {self._config.backend.convergence_tolerance}"
                 )
         if self._config.backend.options:
             assert isinstance(self._config.backend.options, list)
