@@ -16,8 +16,8 @@ from ropt.backend.utils import (
     create_output_path,
     get_masked_linear_constraints,
 )
-from ropt.config import EnOptConfig
 from ropt.config.options import OptionsSchemaModel
+from ropt.context import EnOptContext
 from ropt.core import OptimizerCallback
 from ropt.plugins.backend import BackendPlugin
 
@@ -45,9 +45,9 @@ class DakotaBackend(Backend):
 
     To select an optimizer, set the `method` field within the
     [`optimizer`][ropt.config.BackendConfig] section of the
-    [`EnOptConfig`][ropt.config.EnOptConfig] configuration object to the
+    [`EnOptContext`][ropt.context.EnOptContext] configuration object to the
     desired algorithm's name. Most methods support the general options defined
-    in the [`EnOptConfig`][ropt.config.EnOptConfig] object. For
+    in the [`EnOptContext`][ropt.context.EnOptContext] object. For
     algorithm-specific options, use the `options` dictionary within the
     [`optimizer`][ropt.config.BackendConfig] section.
 
@@ -59,7 +59,7 @@ class DakotaBackend(Backend):
     """
 
     def __init__(
-        self, config: EnOptConfig, optimizer_callback: OptimizerCallback
+        self, context: EnOptContext, optimizer_callback: OptimizerCallback
     ) -> None:
         """Initialize the optimizer implemented by the Dakota plugin.
 
@@ -67,22 +67,22 @@ class DakotaBackend(Backend):
 
         # noqa
         """
-        self._config = config
+        self._context = context
         self._optimizer_callback = optimizer_callback
         self._normalized_constraints: NormalizedConstraints | None
         self._output_dir: Path
 
-        if self._config.nonlinear_constraints is not None:
+        if self._context.nonlinear_constraints is not None:
             self._normalized_constraints = NormalizedConstraints(flip=True)
             lower, upper = (
-                self._config.nonlinear_constraints.lower_bounds,
-                self._config.nonlinear_constraints.upper_bounds,
+                self._context.nonlinear_constraints.lower_bounds,
+                self._context.nonlinear_constraints.upper_bounds,
             )
             self._normalized_constraints.set_bounds(lower, upper)
         else:
             self._normalized_constraints = None
 
-        _, _, self._method = self._config.backend.method.lower().rpartition("/")
+        _, _, self._method = self._context.backend.method.lower().rpartition("/")
         if self._method == "default":
             self._method = _DEFAULT_METHOD
         if self._method not in _SUPPORTED_METHODS:
@@ -96,12 +96,12 @@ class DakotaBackend(Backend):
 
         # noqa
         """
-        if self._config.backend.output_dir is None:
+        if self._context.backend.output_dir is None:
             with TemporaryDirectory() as output_dir:
                 self._output_dir = Path(output_dir)
                 self._start(initial_values)
         else:
-            self._output_dir = self._config.backend.output_dir
+            self._output_dir = self._context.backend.output_dir
             self._start(initial_values)
 
     @property
@@ -142,24 +142,24 @@ class DakotaBackend(Backend):
     def _get_method_section(self) -> list[str]:
         inputs: list[str] = [self._method]
         if (
-            self._config.backend.max_iterations is not None
+            self._context.backend.max_iterations is not None
             and self._method != "asynch_pattern_search"
         ):
-            inputs.append(f"max_iterations = {self._config.backend.max_iterations}")
-        if self._config.backend.convergence_tolerance is not None:
+            inputs.append(f"max_iterations = {self._context.backend.max_iterations}")
+        if self._context.backend.convergence_tolerance is not None:
             if self._method in {"mesh_adaptive_search", "asynch_pattern_search"}:
                 inputs.append(
-                    f"variable_tolerance = {self._config.backend.convergence_tolerance}"
+                    f"variable_tolerance = {self._context.backend.convergence_tolerance}"
                 )
             else:
                 inputs.append(
-                    f"convergence_tolerance = {self._config.backend.convergence_tolerance}"
+                    f"convergence_tolerance = {self._context.backend.convergence_tolerance}"
                 )
-        if self._config.backend.options:
-            assert isinstance(self._config.backend.options, list)
+        if self._context.backend.options:
+            assert isinstance(self._context.backend.options, list)
             inputs.extend(
                 option
-                for option in self._config.backend.options
+                for option in self._context.backend.options
                 if (
                     not option.strip().startswith("constraint_tolerance")
                     or (
@@ -168,15 +168,19 @@ class DakotaBackend(Backend):
                     )
                 )
             )
-        if self._config.gradient.evaluation_policy == "speculative":
+        if self._context.gradient.evaluation_policy == "speculative":
             inputs.append("speculative")
         return inputs
 
     def _get_variables_section(self, initial_values: NDArray[np.float64]) -> list[str]:
         inputs: list[str] = []
-        lower_bounds = self._config.variables.lower_bounds[self._config.variables.mask]
-        upper_bounds = self._config.variables.upper_bounds[self._config.variables.mask]
-        initial_values = initial_values[self._config.variables.mask]
+        lower_bounds = self._context.variables.lower_bounds[
+            self._context.variables.mask
+        ]
+        upper_bounds = self._context.variables.upper_bounds[
+            self._context.variables.mask
+        ]
+        initial_values = initial_values[self._context.variables.mask]
         inputs.extend(
             (
                 f"continuous_design = {initial_values.size}",
@@ -203,9 +207,9 @@ class DakotaBackend(Backend):
     ) -> list[str]:
         inputs: list[str] = []
 
-        if self._config.linear_constraints is not None:
+        if self._context.linear_constraints is not None:
             all_coefficients, all_lower_bounds, all_upper_bounds = (
-                get_masked_linear_constraints(self._config, initial_values)
+                get_masked_linear_constraints(self._context, initial_values)
             )
 
             eq_idx = np.abs(all_lower_bounds - all_upper_bounds) <= 1e-15  # noqa: PLR2004
@@ -294,7 +298,7 @@ class DakotaBackend(Backend):
 
     def _start_direct_interface(self, initial_values: NDArray[np.float64]) -> None:
         driver = _DakotaDriver(
-            self._config,
+            self._context,
             self._optimizer_callback,
             self._normalized_constraints,
             self._get_inputs(initial_values),
@@ -315,12 +319,12 @@ class DakotaBackend(Backend):
 class _DakotaDriver(DakotaBase):
     def __init__(
         self,
-        config: EnOptConfig,
+        context: EnOptContext,
         optimizer_callback: OptimizerCallback,
         normalized_constraints: NormalizedConstraints | None,
         inputs: dict[str, list[str]],
     ) -> None:
-        self._config = config
+        self._context = context
         self._optimizer_callback = optimizer_callback
         self._normalized_constraints = normalized_constraints
         self.exception: Exception | None = None
@@ -366,7 +370,7 @@ class _DakotaDriver(DakotaBase):
         if (
             return_functions
             and compute_gradients
-            and self._config.gradient.evaluation_policy == "separate"
+            and self._context.gradient.evaluation_policy == "separate"
         ):
             callback_result = self._optimizer_callback(
                 variables, return_functions=True, return_gradients=False
@@ -389,7 +393,7 @@ class _DakotaDriver(DakotaBase):
             self._normalized_constraints is not None
             and callback_result.nonlinear_constraint_bounds is not None
         ):
-            assert self._config.nonlinear_constraints is not None
+            assert self._context.nonlinear_constraints is not None
             self._normalized_constraints.set_bounds(
                 *callback_result.nonlinear_constraint_bounds
             )
@@ -432,7 +436,7 @@ class DakotaBackendPlugin(BackendPlugin):
 
     @classmethod
     def create(
-        cls, config: EnOptConfig, optimizer_callback: OptimizerCallback
+        cls, context: EnOptContext, optimizer_callback: OptimizerCallback
     ) -> DakotaBackend:
         """Initialize the optimizer plugin.
 
@@ -440,7 +444,7 @@ class DakotaBackendPlugin(BackendPlugin):
 
         # noqa
         """  # noqa: DOC201
-        return DakotaBackend(config, optimizer_callback)
+        return DakotaBackend(context, optimizer_callback)
 
     @classmethod
     def is_supported(cls, method: str) -> bool:
