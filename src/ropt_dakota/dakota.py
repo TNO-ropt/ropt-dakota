@@ -16,6 +16,7 @@ from ropt.backend.utils import (
     create_output_path,
     get_masked_linear_constraints,
 )
+from ropt.config import BackendConfig
 from ropt.config.options import OptionsSchemaModel
 from ropt.context import EnOptContext
 from ropt.core import OptimizerCallback
@@ -58,7 +59,22 @@ class DakotaBackend(Backend):
     --8<-- "dakota.md"
     """
 
-    def __init__(
+    def __init__(self, backend_config: BackendConfig) -> None:
+        """Initialize the optimizer implemented by the Dakota plugin.
+
+        See the [ropt.backend.Backend][] abstract base class.
+
+        # noqa
+        """
+        _, _, self._method = backend_config.method.lower().rpartition("/")
+        if self._method == "default":
+            self._method = _DEFAULT_METHOD
+        if self._method not in _SUPPORTED_METHODS:
+            msg = f"Dakota optimizer algorithm {self._method} is not supported"
+            raise NotImplementedError(msg)
+        self._config = backend_config
+
+    def init(
         self, context: EnOptContext, optimizer_callback: OptimizerCallback
     ) -> None:
         """Initialize the optimizer implemented by the Dakota plugin.
@@ -82,13 +98,6 @@ class DakotaBackend(Backend):
         else:
             self._normalized_constraints = None
 
-        _, _, self._method = self._context.backend.method.lower().rpartition("/")
-        if self._method == "default":
-            self._method = _DEFAULT_METHOD
-        if self._method not in _SUPPORTED_METHODS:
-            msg = f"Dakota optimizer algorithm {self._method} is not supported"
-            raise NotImplementedError(msg)
-
     def start(self, initial_values: NDArray[np.float64]) -> None:
         """Start the optimization.
 
@@ -96,12 +105,12 @@ class DakotaBackend(Backend):
 
         # noqa
         """
-        if self._context.backend.output_dir is None:
+        if self._context.optimizer.output_dir is None:
             with TemporaryDirectory() as output_dir:
                 self._output_dir = Path(output_dir)
                 self._start(initial_values)
         else:
-            self._output_dir = self._context.backend.output_dir
+            self._output_dir = self._context.optimizer.output_dir
             self._start(initial_values)
 
     @property
@@ -142,24 +151,24 @@ class DakotaBackend(Backend):
     def _get_method_section(self) -> list[str]:
         inputs: list[str] = [self._method]
         if (
-            self._context.backend.max_iterations is not None
+            self._config.max_iterations is not None
             and self._method != "asynch_pattern_search"
         ):
-            inputs.append(f"max_iterations = {self._context.backend.max_iterations}")
-        if self._context.backend.convergence_tolerance is not None:
+            inputs.append(f"max_iterations = {self._config.max_iterations}")
+        if self._config.convergence_tolerance is not None:
             if self._method in {"mesh_adaptive_search", "asynch_pattern_search"}:
                 inputs.append(
-                    f"variable_tolerance = {self._context.backend.convergence_tolerance}"
+                    f"variable_tolerance = {self._config.convergence_tolerance}"
                 )
             else:
                 inputs.append(
-                    f"convergence_tolerance = {self._context.backend.convergence_tolerance}"
+                    f"convergence_tolerance = {self._config.convergence_tolerance}"
                 )
-        if self._context.backend.options:
-            assert isinstance(self._context.backend.options, list)
+        if self._config.options:
+            assert isinstance(self._config.options, list)
             inputs.extend(
                 option
-                for option in self._context.backend.options
+                for option in self._config.options
                 if (
                     not option.strip().startswith("constraint_tolerance")
                     or (
@@ -435,16 +444,14 @@ class DakotaBackendPlugin(BackendPlugin):
     """Plugin class for optimization via Dakota."""
 
     @classmethod
-    def create(
-        cls, context: EnOptContext, optimizer_callback: OptimizerCallback
-    ) -> DakotaBackend:
+    def create(cls, backend_config: BackendConfig) -> DakotaBackend:
         """Initialize the optimizer plugin.
 
         See the [ropt.plugins.backend.BackendPlugin][] abstract base class.
 
         # noqa
         """  # noqa: DOC201
-        return DakotaBackend(context, optimizer_callback)
+        return DakotaBackend(backend_config)
 
     @classmethod
     def is_supported(cls, method: str) -> bool:

@@ -381,8 +381,7 @@ def test_dakota_optimizer_variables_subset_linear_constraints(
 def test_dakota_output_dir(tmp_path: Path, config: Any, evaluator: Any) -> None:
     output_dir = tmp_path / "outputdir"
     output_dir.mkdir()
-    config["backend"]["output_dir"] = output_dir
-    config["optimizer"] = {"max_functions": 1}
+    config["optimizer"] = {"max_functions": 1, "output_dir": output_dir}
     optimizer = BasicOptimizer(config, evaluator())
     optimizer.run(initial_values)
     assert (output_dir / "dakota").exists()
