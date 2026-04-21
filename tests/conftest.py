@@ -7,6 +7,13 @@ import pytest
 from numpy.typing import NDArray
 from ropt.workflow.evaluators import FunctionEvaluator
 
+try:
+    import cloudpickle  # noqa: F401
+
+    _TEST_EXTERNAL = True
+except ImportError:
+    _TEST_EXTERNAL = False
+
 _Function = Callable[[NDArray[np.float64], int], float]
 
 
@@ -20,7 +27,7 @@ def pytest_addoption(parser: Any) -> Any:
 
 
 def pytest_collection_modifyitems(config: Any, items: Sequence[Any]) -> None:
-    if not config.getoption("--run-external"):
+    if not config.getoption("--run-external") or not _TEST_EXTERNAL:
         skip_external = pytest.mark.skip(reason="need --run-external option to run")
         for item in items:
             if "external" in item.keywords:
