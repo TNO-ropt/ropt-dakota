@@ -8,7 +8,7 @@ from numpy.typing import NDArray
 from ropt.workflow.evaluators import FunctionEvaluator
 
 try:
-    import cloudpickle  # noqa: F401
+    import cloudpickle  # type: ignore[import-untyped]  # noqa: F401
 
     _TEST_EXTERNAL = True
 except ImportError:

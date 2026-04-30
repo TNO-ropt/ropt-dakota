@@ -133,6 +133,30 @@ class DakotaBackend(Backend):
         """
         return False
 
+    def validate_options(self) -> None:
+        """Validate the options of a given method.
+
+        See the [ropt.plugins.backend.BackendPlugin][] abstract base class.
+
+        # noqa
+        """  # noqa: DOC501
+        if self._config.options is not None:
+            if not isinstance(self._config.options, list):
+                msg = "Dakota optimizer options must be a list of strings"
+                raise ValueError(msg)
+            options_dict: dict[str, Any] = {}
+            for option in self._config.options:
+                split_option = re.split(r"\s*=\s*|\s+", option.strip(), maxsplit=1)
+                options_dict[split_option[0]] = (
+                    split_option[1]
+                    if len(split_option) > 1 and split_option[1].strip()
+                    else True
+                )
+            *_, method = self._method.rpartition("/")
+            OptionsSchemaModel.model_validate(_OPTIONS_SCHEMA).get_options_model(
+                _DEFAULT_METHOD if method == "default" else method
+            ).model_validate(options_dict)
+
     def _get_inputs(self, initial_values: NDArray[np.float64]) -> dict[str, list[str]]:
         return {
             "environment": [
@@ -462,33 +486,6 @@ class DakotaBackendPlugin(BackendPlugin):
         # noqa
         """  # noqa: DOC201
         return method.lower() in (_SUPPORTED_METHODS | {"default"})
-
-    @classmethod
-    def validate_options(
-        cls, method: str, options: dict[str, Any] | list[str] | None
-    ) -> None:
-        """Validate the options of a given method.
-
-        See the [ropt.plugins.backend.BackendPlugin][] abstract base class.
-
-        # noqa
-        """  # noqa: DOC501
-        if options is not None:
-            if not isinstance(options, list):
-                msg = "Dakota optimizer options must be a list of strings"
-                raise ValueError(msg)
-            options_dict: dict[str, Any] = {}
-            for option in options:
-                split_option = re.split(r"\s*=\s*|\s+", option.strip(), maxsplit=1)
-                options_dict[split_option[0]] = (
-                    split_option[1]
-                    if len(split_option) > 1 and split_option[1].strip()
-                    else True
-                )
-            *_, method = method.rpartition("/")
-            OptionsSchemaModel.model_validate(_OPTIONS_SCHEMA).get_options_model(
-                _DEFAULT_METHOD if method == "default" else method
-            ).model_validate(options_dict)
 
 
 _OPTIONS_SCHEMA: dict[str, Any] = {
