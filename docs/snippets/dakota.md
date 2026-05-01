@@ -1,6 +1,11 @@
+**Common Options:**
 
-| Method | Method Options |
-|--------|----------------|
+[output](https://snl-dakota.github.io/docs/6.21.0/users/usingdakota/reference.html)
+
+**Method-specific Options:**
+
+| Method | Options |
+|--------|---------|
 |[optpp_q_newton](https://snl-dakota.github.io/docs/6.21.0/users/usingdakota/reference/method-optpp_q_newton.html)|search_method, merit_function, steplength_to_boundary, centering_parameter, max_step, gradient_tolerance, max_iterations, convergence_tolerance, max_function_evaluations|
 |[conmin_mfd](https://snl-dakota.github.io/docs/6.21.0/users/usingdakota/reference/method-conmin_mfd.html)|max_iterations, convergence_tolerance, constraint_tolerance, max_function_evaluations|
 |[conmin_frcg](https://snl-dakota.github.io/docs/6.21.0/users/usingdakota/reference/method-conmin_frcg.html)|max_iterations, convergence_tolerance, constraint_tolerance, max_function_evaluations|

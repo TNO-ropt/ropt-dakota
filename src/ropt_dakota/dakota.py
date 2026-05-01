@@ -52,9 +52,9 @@ class DakotaBackend(Backend):
     algorithm-specific options, use the `options` dictionary within the
     [`optimizer`][ropt.config.BackendConfig] section.
 
-    The table below lists the included methods together with the method-specific
-    options that are supported. Click on the method name to consult the
-    corresponding [`Dakota`](https://snl-dakota.github.io/) documentation:
+    Below are the supported options. Click on the common options, or on the
+    method name to consult the corresponding
+    [`Dakota`](https://snl-dakota.github.io/) documentation:
 
     --8<-- "dakota.md"
     """
@@ -489,6 +489,12 @@ class DakotaBackendPlugin(BackendPlugin):
 
 
 _OPTIONS_SCHEMA: dict[str, Any] = {
+    "common": {
+        "options": {
+            "output": str,
+        },
+        "url": "https://snl-dakota.github.io/docs/6.21.0/users/usingdakota/reference.html",
+    },
     "methods": {
         "optpp_q_newton": {
             "options": {
