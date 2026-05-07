@@ -1,6 +1,7 @@
-**Common Options:**
+**Common output option:**
 
 [output](https://snl-dakota.github.io/docs/6.21.0/users/usingdakota/reference.html)
+
 
 **Method-specific Options:**
 

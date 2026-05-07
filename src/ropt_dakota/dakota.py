@@ -489,12 +489,15 @@ class DakotaBackendPlugin(BackendPlugin):
 
 
 _OPTIONS_SCHEMA: dict[str, Any] = {
-    "common": {
-        "options": {
-            "output": str,
-        },
-        "url": "https://snl-dakota.github.io/docs/6.21.0/users/usingdakota/reference.html",
-    },
+    "common": [
+        {
+            "title": "Common output option",
+            "options": {
+                "output": str,
+            },
+            "url": "https://snl-dakota.github.io/docs/6.21.0/users/usingdakota/reference.html",
+        }
+    ],
     "methods": {
         "optpp_q_newton": {
             "options": {
