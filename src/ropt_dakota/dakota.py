@@ -367,13 +367,14 @@ class _DakotaDriver(DakotaBase):
         self,
         **kwargs: Any,  # noqa: ANN401
     ) -> dict[str, NDArray[np.float64] | None]:
+        asv = [response for response in kwargs["asv"] if response > 0]
+        if len(set(asv)) > 1:
+            msg = "Non-unique ASV elements different from 0 are not yet supported."
+            self.exception = NotImplementedError(msg)
+            raise self.exception
+        return_functions = asv[0] in {1, 3}
+        compute_gradients = asv[0] in {2, 3}
         try:
-            asv = [response for response in kwargs["asv"] if response > 0]
-            if len(set(asv)) > 1:
-                msg = "Non-unique ASV elements different from 0 are not yet supported."
-                raise NotImplementedError(msg)  # noqa: TRY301
-            return_functions = asv[0] in {1, 3}
-            compute_gradients = asv[0] in {2, 3}
             function_result, gradient_result = self._compute_response(
                 np.concatenate(
                     (kwargs["cv"], kwargs["div"].astype(np.float64), kwargs["drv"]),
