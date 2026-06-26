@@ -496,7 +496,7 @@ _OPTIONS_SCHEMA: dict[str, Any] = {
             "options": {
                 "output": str,
             },
-            "url": "https://snl-dakota.github.io/docs/6.21.0/users/usingdakota/reference.html",
+            "url": "https://snl-dakota.github.io/docs/latest_release/users/usingdakota/reference.html",
         }
     ],
     "methods": {
@@ -517,7 +517,7 @@ _OPTIONS_SCHEMA: dict[str, Any] = {
                 "convergence_tolerance": float,
                 "max_function_evaluations": int,
             },
-            "url": "https://snl-dakota.github.io/docs/6.21.0/users/usingdakota/reference/method-optpp_q_newton.html",
+            "url": "https://snl-dakota.github.io/docs/latest_release/users/usingdakota/reference/method-optpp_q_newton.html",
         },
         "conmin_mfd": {
             "options": {
@@ -526,7 +526,7 @@ _OPTIONS_SCHEMA: dict[str, Any] = {
                 "constraint_tolerance": float,
                 "max_function_evaluations": int,
             },
-            "url": "https://snl-dakota.github.io/docs/6.21.0/users/usingdakota/reference/method-conmin_mfd.html",
+            "url": "https://snl-dakota.github.io/docs/latest_release/users/usingdakota/reference/method-conmin_mfd.html",
         },
         "conmin_frcg": {
             "options": {
@@ -535,7 +535,7 @@ _OPTIONS_SCHEMA: dict[str, Any] = {
                 "constraint_tolerance": float,
                 "max_function_evaluations": int,
             },
-            "url": "https://snl-dakota.github.io/docs/6.21.0/users/usingdakota/reference/method-conmin_frcg.html",
+            "url": "https://snl-dakota.github.io/docs/latest_release/users/usingdakota/reference/method-conmin_frcg.html",
         },
         "mesh_adaptive_search": {
             "options": {
@@ -552,7 +552,7 @@ _OPTIONS_SCHEMA: dict[str, Any] = {
                 "max_iterations": int,
                 "max_function_evaluations": int,
             },
-            "url": "https://snl-dakota.github.io/docs/6.21.0/users/usingdakota/reference/method-mesh_adaptive_search.html",
+            "url": "https://snl-dakota.github.io/docs/latest_release/users/usingdakota/reference/method-mesh_adaptive_search.html",
         },
         "coliny_ea": {
             "options": {
@@ -581,7 +581,7 @@ _OPTIONS_SCHEMA: dict[str, Any] = {
                 "convergence_tolerance": float,
                 "max_function_evaluations": int,
             },
-            "url": "https://snl-dakota.github.io/docs/6.21.0/users/usingdakota/reference/method-coliny_ea.html",
+            "url": "https://snl-dakota.github.io/docs/latest_release/users/usingdakota/reference/method-coliny_ea.html",
         },
         "soga": {
             "options": {
@@ -618,7 +618,7 @@ _OPTIONS_SCHEMA: dict[str, Any] = {
                 "seed": int,
                 "convergence_tolerance": float,
             },
-            "url": "https://snl-dakota.github.io/docs/6.21.0/users/usingdakota/reference/method-soga.html",
+            "url": "https://snl-dakota.github.io/docs/latest_release/users/usingdakota/reference/method-soga.html",
         },
         "moga": {
             "options": {
@@ -656,7 +656,7 @@ _OPTIONS_SCHEMA: dict[str, Any] = {
                 "seed": int,
                 "convergence_tolerance": float,
             },
-            "url": "https://snl-dakota.github.io/docs/6.21.0/users/usingdakota/reference/method-moga.html",
+            "url": "https://snl-dakota.github.io/docs/latest_release/users/usingdakota/reference/method-moga.html",
         },
         "asynch_pattern_search": {
             "options": {
@@ -678,7 +678,7 @@ _OPTIONS_SCHEMA: dict[str, Any] = {
                 "constraint_tolerance": float,
                 "max_function_evaluations": int,
             },
-            "url": "https://snl-dakota.github.io/docs/6.21.0/users/usingdakota/reference/method-asynch_pattern_search.html",
+            "url": "https://snl-dakota.github.io/docs/latest_release/users/usingdakota/reference/method-asynch_pattern_search.html",
         },
     },
 }

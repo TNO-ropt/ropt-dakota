@@ -5,7 +5,11 @@ from typing import Any
 import numpy as np
 import pytest
 from numpy.typing import NDArray
-from ropt.workflow.evaluators import FunctionEvaluator
+from ropt.workflow.evaluators import (
+    EvaluationFunctionContext,
+    EvaluationFunctionResult,
+    FunctionEvaluator,
+)
 
 try:
     import cloudpickle  # type: ignore[import-untyped]  # noqa: F401
@@ -14,7 +18,7 @@ try:
 except ImportError:
     _TEST_EXTERNAL = False
 
-_Function = Callable[[NDArray[np.float64], int], float]
+_Function = Callable[[NDArray[np.float64], EvaluationFunctionContext], float]
 
 
 def pytest_addoption(parser: Any) -> Any:
@@ -35,7 +39,9 @@ def pytest_collection_modifyitems(config: Any, items: Sequence[Any]) -> None:
 
 
 def _compute_distance_squared(
-    variables: NDArray[np.float64], _: int, target: NDArray[np.float64]
+    variables: NDArray[np.float64],
+    _: EvaluationFunctionContext,
+    target: NDArray[np.float64],
 ) -> float:
     return float(((variables - target) ** 2).sum())
 
@@ -50,21 +56,36 @@ def fixture_test_functions() -> tuple[_Function, _Function]:
 
 def _function(
     variables: NDArray[np.float64],
+    context: EvaluationFunctionContext,
     *,
-    realization: int,
-    test_functions: list[_Function],
-    **kwargs: Any,  # noqa: ARG001
-) -> NDArray[np.float64]:
-    return np.fromiter(
-        (func(variables, realization) for func in test_functions), dtype=np.float64
+    objective_functions: list[_Function],
+    constraint_functions: list[_Function] | None = None,
+) -> EvaluationFunctionResult:
+    return EvaluationFunctionResult(
+        objectives=np.fromiter(
+            (func(variables, context) for func in objective_functions), dtype=np.float64
+        ),
+        constraints=np.fromiter(
+            (func(variables, context) for func in constraint_functions),
+            dtype=np.float64,
+        )
+        if constraint_functions is not None
+        else None,
     )
 
 
 @pytest.fixture(scope="session")
-def evaluator(test_functions: Any) -> Any:
-    def _evaluator(test_functions: list[_Function] = test_functions) -> Any:
+def evaluator(test_functions: Any, constraint_functions: Any | None = None) -> Any:
+    def _evaluator(
+        objective_functions: list[_Function] = test_functions,
+        constraint_functions: list[_Function] | None = constraint_functions,
+    ) -> Any:
         return FunctionEvaluator(
-            function=partial(_function, test_functions=test_functions),
+            function=partial(
+                _function,
+                objective_functions=objective_functions,
+                constraint_functions=constraint_functions,
+            )
         )
 
     return _evaluator
