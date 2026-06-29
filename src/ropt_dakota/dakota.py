@@ -22,7 +22,7 @@ from ropt.context import EnOptContext
 from ropt.core import OptimizerCallback
 from ropt.plugins.backend import BackendPlugin
 
-_PRECISION: Final[int] = 8
+_PRECISION: Final[int] = 17
 
 
 _SUPPORTED_METHODS: Final = {
@@ -219,16 +219,17 @@ class DakotaBackend(Backend):
                 f"continuous_design = {initial_values.size}",
                 "initial_point "
                 + " ".join(
-                    f"{initial_value:{_PRECISION}f}" for initial_value in initial_values
+                    f"{initial_value:.{_PRECISION}f}"
+                    for initial_value in initial_values
                 ),
                 "lower_bounds "
                 + " ".join(
-                    f"{bound:{_PRECISION}f}" if isfinite(bound) else "-inf"
+                    f"{bound:.{_PRECISION}f}" if isfinite(bound) else "-inf"
                     for bound in lower_bounds
                 ),
                 "upper_bounds "
                 + " ".join(
-                    f"{bound:{_PRECISION}f}" if isfinite(bound) else "inf"
+                    f"{bound:.{_PRECISION}f}" if isfinite(bound) else "inf"
                     for bound in upper_bounds
                 ),
             )
@@ -260,7 +261,7 @@ class DakotaBackend(Backend):
                     "linear_inequality_constraint_matrix = "
                     + "\n".join(
                         " ".join(
-                            f"{value:{_PRECISION}f}" for value in coefficients[idx, :]
+                            f"{value:.{_PRECISION}f}" for value in coefficients[idx, :]
                         )
                         for idx in range(lower_bounds.size)
                     ),
@@ -269,7 +270,7 @@ class DakotaBackend(Backend):
                     inputs.append(
                         "linear_inequality_lower_bounds = "
                         + " ".join(
-                            f"{value:{_PRECISION}f}" if isfinite(value) else "-inf"
+                            f"{value:.{_PRECISION}f}" if isfinite(value) else "-inf"
                             for value in lower_bounds
                         ),
                     )
@@ -277,7 +278,7 @@ class DakotaBackend(Backend):
                     inputs.append(
                         "linear_inequality_upper_bounds = "
                         + " ".join(
-                            f"{value:{_PRECISION}f}" if isfinite(value) else "inf"
+                            f"{value:.{_PRECISION}f}" if isfinite(value) else "inf"
                             for value in upper_bounds
                         ),
                     )
@@ -293,13 +294,13 @@ class DakotaBackend(Backend):
                         "linear_equality_constraint_matrix = "
                         + "\n".join(
                             " ".join(
-                                f"{value:{_PRECISION}f}"
+                                f"{value:.{_PRECISION}f}"
                                 for value in coefficients[idx, :]
                             )
                             for idx in range(bounds.size)
                         ),
                         "linear_equality_targets ="
-                        + " ".join(f"{value:{_PRECISION}f}" for value in bounds),
+                        + " ".join(f"{value:.{_PRECISION}f}" for value in bounds),
                     )
                 )
 
