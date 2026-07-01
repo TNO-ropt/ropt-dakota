@@ -114,16 +114,6 @@ class DakotaBackend(Backend):
             self._start(initial_values)
 
     @property
-    def allow_nan(self) -> bool:
-        """Whether NaN is allowed.
-
-        See the [ropt.backend.Backend][] abstract base class.
-
-        # noqa
-        """
-        return False
-
-    @property
     def is_parallel(self) -> bool:
         """Whether the current run is parallel.
 

@@ -314,7 +314,7 @@ def test_dakota_failed_realizations(config: Any, evaluator: Any) -> None:
         evaluator(functions),
     )
     exit_code = optimizer.run(initial_values)
-    assert exit_code == ExitCode.TOO_FEW_REALIZATIONS
+    assert exit_code.exit_code == ExitCode.TOO_FEW_REALIZATIONS
 
 
 def test_dakota_user_abort(config: Any, evaluator: Any) -> None:
@@ -333,7 +333,7 @@ def test_dakota_user_abort(config: Any, evaluator: Any) -> None:
     exit_code = optimizer.run(initial_values)
     assert optimizer.results is not None
     assert last_evaluation == 2
-    assert exit_code == ExitCode.USER_ABORT
+    assert exit_code.exit_code == ExitCode.USER_ABORT
 
 
 def test_dakota_evaluation_policy_separate(config: Any, evaluator: Any) -> None:
