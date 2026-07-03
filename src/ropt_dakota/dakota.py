@@ -1,5 +1,6 @@
 """This module implements the Dakota optimization plugin."""
 
+import logging
 import re
 from math import isfinite
 from os import chdir
@@ -21,6 +22,8 @@ from ropt.config.options import OptionsSchemaModel
 from ropt.context import EnOptContext
 from ropt.core import OptimizerCallback
 from ropt.plugins.backend import BackendPlugin
+
+_logger = logging.getLogger("ropt.backend.dakota")
 
 _PRECISION: Final[int] = 17
 
@@ -97,6 +100,7 @@ class DakotaBackend(Backend):
             self._normalized_constraints.set_bounds(lower, upper)
         else:
             self._normalized_constraints = None
+        _logger.debug("Using Dakota optimizer: %s", self._method)
 
     def start(self, initial_values: NDArray[np.float64]) -> None:
         """Start the optimization.
