@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools", "setuptools-scm"]
+requires = ["setuptools", "setuptools-scm>=8.1"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -25,6 +25,7 @@ dependencies = ["numpy", "carolina"]
 "Homepage" = "https://github.com/TNO-ropt/ropt-dakota"
 "Repository" = "https://github.com/TNO-ropt/ropt-dakota"
 "Bug Tracker" = "https://github.com/TNO-ropt/ropt-dakota/issues"
+"Documentation" = "https://tno-ropt.github.io/ropt-dakota"
 
 [project.entry-points."ropt.plugins.backend"]
 dakota = "ropt_dakota.dakota:DakotaBackendPlugin"
@@ -35,11 +36,9 @@ where = ["src"]
 [tool.setuptools.package-data]
 ropt_dakota = ["py.typed"]
 
-[tool.setuptools.dynamic]
-version = { attr = "ropt_dakota.version.__version__" }
-
 [tool.setuptools_scm]
-write_to = "src/ropt_dakota/version.py"
+version_file = "src/ropt_dakota/version.py"
+fallback_version = "0.0.0.dev0"
 
 [tool.pytest.ini_options]
 markers = ["external: external optimizer marker"]
