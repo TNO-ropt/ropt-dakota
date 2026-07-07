@@ -440,7 +440,7 @@ workflows and is extensible through its plugin architecture. Installing
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-external" title="ropt.backend.Backend" href="https://tno-ropt.github.io/ropt/latest/reference/plugins/optimizer/backend/#ropt.backend.Backend">Backend</a></code></p>
+              Bases: <code><a class="autorefs autorefs-external" title="ropt.backend.Backend" href="https://tno-ropt.github.io/ropt/latest/reference/backend/#ropt.backend.Backend">Backend</a></code></p>
 
 
 
@@ -448,12 +448,12 @@ workflows and is extensible through its plugin architecture. Installing
 <p>This class provides an interface to several optimization algorithms from
 <a href="https://snl-dakota.github.io/"><code>Dakota</code></a>, enabling their use within <code>ropt</code>.</p>
 <p>To select an optimizer, set the <code>method</code> field within the
-<a class="autorefs autorefs-external" href="https://tno-ropt.github.io/ropt/latest/reference/optimization/configuration/#ropt.config.BackendConfig"><code>optimizer</code></a> section of the
-<a class="autorefs autorefs-external" href="https://tno-ropt.github.io/ropt/latest/reference/optimization/configuration/#ropt.context.EnOptContext"><code>EnOptContext</code></a> configuration object to the
+<a class="autorefs autorefs-external" href="https://tno-ropt.github.io/ropt/latest/reference/config/#ropt.config.BackendConfig"><code>optimizer</code></a> section of the
+<a class="autorefs autorefs-external" href="https://tno-ropt.github.io/ropt/latest/reference/context/#ropt.context.EnOptContext"><code>EnOptContext</code></a> configuration object to the
 desired algorithm's name. Most methods support the general options defined
-in the <a class="autorefs autorefs-external" href="https://tno-ropt.github.io/ropt/latest/reference/optimization/configuration/#ropt.context.EnOptContext"><code>EnOptContext</code></a> object. For
+in the <a class="autorefs autorefs-external" href="https://tno-ropt.github.io/ropt/latest/reference/context/#ropt.context.EnOptContext"><code>EnOptContext</code></a> object. For
 algorithm-specific options, use the <code>options</code> dictionary within the
-<a class="autorefs autorefs-external" href="https://tno-ropt.github.io/ropt/latest/reference/optimization/configuration/#ropt.config.BackendConfig"><code>optimizer</code></a> section.</p>
+<a class="autorefs autorefs-external" href="https://tno-ropt.github.io/ropt/latest/reference/config/#ropt.config.BackendConfig"><code>optimizer</code></a> section.</p>
 <p>Below are the supported options. Click on the common options, or on the
 method name to consult the corresponding
 <a href="https://snl-dakota.github.io/"><code>Dakota</code></a> documentation:</p>
