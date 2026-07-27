@@ -12,7 +12,7 @@ from ropt.workflow.evaluators import (
 )
 
 try:
-    import cloudpickle  # type: ignore[import-untyped]  # noqa: F401
+    import cloudpickle  # ruff: ignore[unused-import]
 
     _TEST_EXTERNAL = True
 except ImportError:

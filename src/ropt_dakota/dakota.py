@@ -133,7 +133,7 @@ class DakotaBackend(Backend):
         See the [ropt.plugins.backend.BackendPlugin][] abstract base class.
 
         # noqa
-        """  # noqa: DOC501
+        """  # ruff: ignore[docstring-missing-exception]
         if self._config.options is not None:
             if not isinstance(self._config.options, list):
                 msg = "Dakota optimizer options must be a list of strings"
@@ -240,7 +240,7 @@ class DakotaBackend(Backend):
                 get_masked_linear_constraints(self._context, initial_values)
             )
 
-            eq_idx = np.abs(all_lower_bounds - all_upper_bounds) <= 1e-15  # noqa: PLR2004
+            eq_idx = np.abs(all_lower_bounds - all_upper_bounds) <= 1e-15  # ruff: ignore[magic-value-comparison]
             ineq_idx = np.logical_not(eq_idx)
 
             if np.any(ineq_idx):
@@ -360,7 +360,7 @@ class _DakotaDriver(DakotaBase):
 
     def dakota_callback(
         self,
-        **kwargs: Any,  # noqa: ANN401
+        **kwargs: Any,  # ruff: ignore[any-type]
     ) -> dict[str, NDArray[np.float64] | None]:
         asv = [response for response in kwargs["asv"] if response > 0]
         if len(set(asv)) > 1:
@@ -470,7 +470,7 @@ class DakotaBackendPlugin(BackendPlugin):
         See the [ropt.plugins.backend.BackendPlugin][] abstract base class.
 
         # noqa
-        """  # noqa: DOC201
+        """  # ruff: ignore[docstring-missing-returns]
         return DakotaBackend(backend_config)
 
     @classmethod
@@ -480,7 +480,7 @@ class DakotaBackendPlugin(BackendPlugin):
         See the [ropt.plugins.backend.BackendPlugin][] abstract base class.
 
         # noqa
-        """  # noqa: DOC201
+        """  # ruff: ignore[docstring-missing-returns]
         return method.lower() in (_SUPPORTED_METHODS | {"default"})
 
 
