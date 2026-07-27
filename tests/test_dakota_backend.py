@@ -1,4 +1,4 @@
-# ruff: noqa: RUF069
+# ruff: file-ignore[float-equality-comparison]
 
 from pathlib import Path
 from typing import Any
