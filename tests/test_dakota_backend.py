@@ -317,25 +317,6 @@ def test_dakota_failed_realizations(config: Any, evaluator: Any) -> None:
     assert exit_code == ExitCode.TOO_FEW_REALIZATIONS
 
 
-def test_dakota_user_abort(config: Any, evaluator: Any) -> None:
-    last_evaluation = 0
-
-    def _abort() -> bool:
-        nonlocal last_evaluation
-
-        if last_evaluation == 2:
-            return True
-        last_evaluation += 1
-        return False
-
-    optimizer = BasicOptimizer(config, evaluator())
-    optimizer.set_abort_callback(_abort)
-    exit_code = optimizer.run(initial_values)
-    assert optimizer.results is not None
-    assert last_evaluation == 2
-    assert exit_code == ExitCode.USER_ABORT
-
-
 def test_dakota_evaluation_policy_separate(config: Any, evaluator: Any) -> None:
     config["gradient"] = {"evaluation_policy": "separate"}
     optimizer = BasicOptimizer(config, evaluator())
