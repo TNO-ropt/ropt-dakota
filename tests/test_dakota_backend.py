@@ -7,12 +7,10 @@ import numpy as np
 import pytest
 from numpy.typing import NDArray
 from pydantic import ValidationError
+from ropt.components.evaluators import EvaluationFunctionContext
 from ropt.enums import ExitCode
 from ropt.results import GradientResults, Results
 from ropt.workflow import BasicOptimizer, validate_backend_options
-from ropt.workflow.evaluators import (
-    EvaluationFunctionContext,
-)
 
 from ropt_dakota.dakota import _SUPPORTED_METHODS
 
