@@ -21,6 +21,7 @@ from ropt.config import BackendConfig
 from ropt.config.options import OptionsSchemaModel
 from ropt.context import EnOptContext
 from ropt.core import OptimizerCallback
+from ropt.exceptions import UnsupportedError
 from ropt.plugins.backend import BackendPlugin
 
 _logger = logging.getLogger("ropt.backend.dakota")
@@ -68,13 +69,13 @@ class DakotaBackend(Backend):
         See the [ropt.backend.Backend][] abstract base class.
 
         # noqa
-        """
+        """  # ruff: ignore[docstring-missing-exception]
         _, _, self._method = backend_config.method.lower().rpartition("/")
         if self._method == "default":
             self._method = _DEFAULT_METHOD
         if self._method not in _SUPPORTED_METHODS:
-            msg = f"Dakota optimizer algorithm {self._method} is not supported"
-            raise NotImplementedError(msg)
+            msg = f"Dakota optimizer algorithm '{self._method}' is not supported."
+            raise UnsupportedError(msg)
         self._config = backend_config
 
     def init(
@@ -365,7 +366,7 @@ class _DakotaDriver(DakotaBase):
         asv = [response for response in kwargs["asv"] if response > 0]
         if len(set(asv)) > 1:
             msg = "Non-unique ASV elements different from 0 are not yet supported."
-            self.exception = NotImplementedError(msg)
+            self.exception = UnsupportedError(msg)
             raise self.exception
         return_functions = asv[0] in {1, 3}
         compute_gradients = asv[0] in {2, 3}
