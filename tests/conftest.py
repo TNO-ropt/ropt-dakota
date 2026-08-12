@@ -8,7 +8,6 @@ from numpy.typing import NDArray
 from ropt.components.evaluators import (
     EvaluationFunctionContext,
     EvaluationFunctionResult,
-    FunctionEvaluator,
 )
 
 try:
@@ -75,17 +74,15 @@ def _function(
 
 
 @pytest.fixture(scope="session")
-def evaluator(test_functions: Any, constraint_functions: Any | None = None) -> Any:
-    def _evaluator(
+def eval_func(test_functions: Any, constraint_functions: Any | None = None) -> Any:
+    def _eval_func(
         objective_functions: list[_Function] = test_functions,
         constraint_functions: list[_Function] | None = constraint_functions,
     ) -> Any:
-        return FunctionEvaluator(
-            function=partial(
-                _function,
-                objective_functions=objective_functions,
-                constraint_functions=constraint_functions,
-            )
+        return partial(
+            _function,
+            objective_functions=objective_functions,
+            constraint_functions=constraint_functions,
         )
 
-    return _evaluator
+    return _eval_func
