@@ -308,9 +308,11 @@ class DakotaBackend(Backend):
             "no_hessians",
         ]
         if self._normalized_constraints is not None:
-            if (ineq := self._normalized_constraints.is_eq.count(False)) > 0:
+            ineq = self._normalized_constraints.is_eq.count(False)
+            if ineq > 0:
                 inputs.append(f"nonlinear_inequality_constraints = {ineq} ")
-            if (eq := self._normalized_constraints.is_eq.count(True)) > 0:
+            eq = self._normalized_constraints.is_eq.count(True)
+            if eq > 0:
                 inputs.append(f"nonlinear_equality_constraints = {eq}")
         return inputs
 
