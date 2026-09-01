@@ -147,9 +147,8 @@ class DakotaBackend(Backend):
                     if len(split_option) > 1 and split_option[1].strip()
                     else True
                 )
-            *_, method = self._method.rpartition("/")
             OptionsSchemaModel.model_validate(_OPTIONS_SCHEMA).get_options_model(
-                _DEFAULT_METHOD if method == "default" else method
+                self._method
             ).model_validate(options_dict)
 
     def _get_inputs(self, initial_values: NDArray[np.float64]) -> dict[str, list[str]]:
