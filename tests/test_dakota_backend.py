@@ -13,7 +13,7 @@ from ropt.enums import EnOptEventType, ExitCode
 from ropt.events import EnOptEvent
 from ropt.results import GradientResults
 from ropt.simple import optimize
-from ropt.workflow import validate_backend_options
+from ropt.utils import validate_backend_options
 
 from ropt_dakota.dakota import _SUPPORTED_METHODS
 
