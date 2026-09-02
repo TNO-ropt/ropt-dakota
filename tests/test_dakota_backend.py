@@ -330,26 +330,6 @@ def test_dakota_optimizer_variables_subset(config: Any, eval_func: Any) -> None:
     assert np.allclose(result.variables, [0.0, 0.0, 0.5], atol=0.02)
 
 
-def test_dakota_optimizer_variables_subset_linear_constraints(
-    config: Any, eval_func: Any
-) -> None:
-    # Set the second variable a constant value, this will not affect the
-    # optimization of the other variables in this particular test problem: The
-    # second and third constraints are dropped because they involve variables
-    # that are not optimized. They are still checked by the monitor:
-    config["linear_constraints"] = {
-        "coefficients": [[1, 0, 1], [0, 1, 0], [1, 1, 1]],
-        "lower_bounds": [1.0, 1.0, 2.0],
-        "upper_bounds": [1.0, 1.0, 2.0],
-    }
-    config["variables"]["mask"] = [True, False, True]
-    initial = initial_values.copy()
-    initial[1] = 1.0
-    result = optimize(config, initial, eval_func())
-    assert result.variables is not None
-    assert np.allclose(result.variables, [0.25, 1.0, 0.75], atol=0.02)
-
-
 def test_dakota_output_dir(tmp_path: Path, config: Any, eval_func: Any) -> None:
     output_dir = tmp_path / "outputdir"
     output_dir.mkdir()
@@ -360,3 +340,34 @@ def test_dakota_output_dir(tmp_path: Path, config: Any, eval_func: Any) -> None:
     assert (output_dir / "dakota-001").exists()
     optimize(config, initial_values, eval_func())
     assert (output_dir / "dakota-002").exists()
+
+
+def test_dakota_optimizer_variables_subset_linear_constraints(
+    config: Any, eval_func: Any
+) -> None:
+    # The second constraint only involves the fixed variable.
+    config["linear_constraints"] = {
+        "coefficients": [[1, 0, 1], [0, 1, 0]],
+        "lower_bounds": [1.0, 1.0],
+        "upper_bounds": [1.0, 1.0],
+    }
+    config["variables"]["mask"] = [True, False, True]
+
+    result = optimize(config, [0.0, 1.0, 0.1], eval_func())
+    assert result.variables is not None
+    assert np.allclose(result.variables, [0.25, 1.0, 0.75], atol=0.02)
+
+
+def test_dakota_optimizer_variables_subset_linear_constraints_offset(
+    config: Any, eval_func: Any
+) -> None:
+    config["linear_constraints"] = {
+        "coefficients": [[1, 0, 1], [1, 1, 0]],
+        "lower_bounds": [1.0, -np.inf],
+        "upper_bounds": [1.0, 1.15],
+    }
+    config["variables"]["mask"] = [True, False, True]
+
+    result = optimize(config, [0.0, 1.0, 0.1], eval_func())
+    assert result.variables is not None
+    assert np.allclose(result.variables, [0.15, 1.0, 0.85], atol=0.02)
