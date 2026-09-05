@@ -6,7 +6,7 @@ from math import isfinite
 from os import chdir
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Any, Final, Literal
+from typing import Any, ClassVar, Final, Literal
 
 import numpy as np
 from dakota import DakotaBase, DakotaInput
@@ -22,7 +22,7 @@ from ropt.config.options import OptionsSchemaModel
 from ropt.context import EnOptContext
 from ropt.core import OptimizerCallback
 from ropt.exceptions import UnsupportedError
-from ropt.plugins.backend import BackendPlugin
+from ropt.plugins import MethodSpec
 
 _logger = logging.getLogger("ropt.backend.dakota")
 
@@ -62,6 +62,8 @@ class DakotaBackend(Backend):
 
     --8<-- "dakota.md"
     """
+
+    methods: ClassVar[MethodSpec] = _SUPPORTED_METHODS | {"default"}
 
     def __init__(self, backend_config: BackendConfig) -> None:
         """Initialize the optimizer implemented by the Dakota plugin.
@@ -131,7 +133,7 @@ class DakotaBackend(Backend):
     def validate_options(self) -> None:
         """Validate the options of a given method.
 
-        See the [ropt.plugins.backend.BackendPlugin][] abstract base class.
+        See the [ropt.backend.Backend][] abstract base class.
 
         # noqa
         """  # ruff: ignore[docstring-missing-exception]
@@ -460,30 +462,6 @@ class _DakotaDriver(DakotaBase):
                 )
 
         return functions, gradients
-
-
-class DakotaBackendPlugin(BackendPlugin):
-    """Plugin class for optimization via Dakota."""
-
-    @classmethod
-    def create(cls, backend_config: BackendConfig) -> DakotaBackend:
-        """Initialize the optimizer plugin.
-
-        See the [ropt.plugins.backend.BackendPlugin][] abstract base class.
-
-        # noqa
-        """  # ruff: ignore[docstring-missing-returns]
-        return DakotaBackend(backend_config)
-
-    @classmethod
-    def is_supported(cls, method: str) -> bool:
-        """Check if a method is supported.
-
-        See the [ropt.plugins.backend.BackendPlugin][] abstract base class.
-
-        # noqa
-        """  # ruff: ignore[docstring-missing-returns]
-        return method.lower() in (_SUPPORTED_METHODS | {"default"})
 
 
 _OPTIONS_SCHEMA: dict[str, Any] = {
