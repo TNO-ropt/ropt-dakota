@@ -48,6 +48,15 @@ class DakotaBackend(Backend):
     This class provides an interface to several optimization algorithms from
     [`Dakota`](https://snl-dakota.github.io/), enabling their use within `ropt`.
 
+    !!! warning "This backend cannot run concurrently in-process"
+        Dakota needs a working directory, so a run changes the working directory
+        of the whole process and writes its input and report files there.
+        Nothing else may run in that process meanwhile: not a second Dakota run,
+        not a run on another backend, and not an evaluation function that opens
+        a file by relative name. To use this backend alongside anything else,
+        prefix the method with `external/` and it runs in a process of its own,
+        through the [`external`][ropt.backend.external.ExternalBackend] backend.
+
     To select an optimizer, set the `method` field within the
     [`optimizer`][ropt.config.BackendConfig] section of the
     [`EnOptContext`][ropt.context.EnOptContext] configuration object to the
