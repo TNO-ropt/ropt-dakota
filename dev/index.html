@@ -447,6 +447,16 @@ workflows and is extensible through its plugin architecture. Installing
         <p>Dakota optimization backend for ropt.</p>
 <p>This class provides an interface to several optimization algorithms from
 <a href="https://snl-dakota.github.io/"><code>Dakota</code></a>, enabling their use within <code>ropt</code>.</p>
+<div class="admonition warning">
+<p class="admonition-title">This backend cannot run concurrently in-process</p>
+<p>Dakota needs a working directory, so a run changes the working directory
+of the whole process and writes its input and report files there.
+Nothing else may run in that process meanwhile: not a second Dakota run,
+not a run on another backend, and not an evaluation function that opens
+a file by relative name. To use this backend alongside anything else,
+prefix the method with <code>external/</code> and it runs in a process of its own,
+through the <a class="autorefs autorefs-external" href="https://tno-ropt.github.io/ropt/latest/reference/backend/#ropt.backend.external.ExternalBackend"><code>external</code></a> backend.</p>
+</div>
 <p>To select an optimizer, set the <code>method</code> field within the
 <a class="autorefs autorefs-external" href="https://tno-ropt.github.io/ropt/latest/reference/config/#ropt.config.BackendConfig"><code>optimizer</code></a> section of the
 <a class="autorefs autorefs-external" href="https://tno-ropt.github.io/ropt/latest/reference/context/#ropt.context.EnOptContext"><code>EnOptContext</code></a> configuration object to the
