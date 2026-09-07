@@ -13,9 +13,9 @@ from dakota import DakotaBase, DakotaInput
 from numpy.typing import NDArray
 from ropt.backend import Backend
 from ropt.backend.utils import (
-    NormalizedConstraints,
     create_output_path,
-    get_masked_linear_constraints,
+    get_linear_constraints,
+    get_nonlinear_equalities,
     resolve_verbosity,
 )
 from ropt.config import BackendConfig
@@ -103,18 +103,17 @@ class DakotaBackend(Backend):
         """
         self._context = context
         self._optimizer_callback = optimizer_callback
-        self._normalized_constraints: NormalizedConstraints | None
         self._output_dir: Path
 
-        if self._context.nonlinear_constraints is not None:
-            self._normalized_constraints = NormalizedConstraints(flip=True)
-            lower, upper = (
-                self._context.nonlinear_constraints.lower_bounds,
-                self._context.nonlinear_constraints.upper_bounds,
-            )
-            self._normalized_constraints.set_bounds(lower, upper)
-        else:
-            self._normalized_constraints = None
+        # Dakota wants the inequalities before the equalities, so the rows are
+        # reordered on the way out; the order is fixed for the run.
+        is_eq = get_nonlinear_equalities(self._context)
+        self._is_eq = is_eq
+        self._row_order = (
+            None
+            if is_eq is None
+            else np.concatenate((np.flatnonzero(~is_eq), np.flatnonzero(is_eq)))
+        )
         _logger.debug("Using Dakota optimizer: %s", self._method)
 
     def start(self, initial_values: NDArray[np.float64]) -> None:
@@ -278,11 +277,10 @@ class DakotaBackend(Backend):
         inputs: list[str] = []
 
         if self._context.linear_constraints is not None:
-            all_coefficients, all_lower_bounds, all_upper_bounds = (
-                get_masked_linear_constraints(self._context, initial_values)
+            all_coefficients, all_lower_bounds, all_upper_bounds, eq_idx = (
+                get_linear_constraints(self._context, initial_values)
             )
 
-            eq_idx = np.abs(all_lower_bounds - all_upper_bounds) <= 1e-15  # ruff: ignore[magic-value-comparison]
             ineq_idx = np.logical_not(eq_idx)
 
             if np.any(ineq_idx):
@@ -348,11 +346,11 @@ class DakotaBackend(Backend):
             "analytic_gradients",
             "no_hessians",
         ]
-        if self._normalized_constraints is not None:
-            ineq = self._normalized_constraints.is_eq.count(False)
+        if self._is_eq is not None:
+            ineq = int(np.sum(~self._is_eq))
             if ineq > 0:
                 inputs.append(f"nonlinear_inequality_constraints = {ineq} ")
-            eq = self._normalized_constraints.is_eq.count(True)
+            eq = int(np.sum(self._is_eq))
             if eq > 0:
                 inputs.append(f"nonlinear_equality_constraints = {eq}")
         return inputs
@@ -372,7 +370,7 @@ class DakotaBackend(Backend):
         driver = _DakotaDriver(
             self._context,
             self._optimizer_callback,
-            self._normalized_constraints,
+            self._row_order,
             self._get_inputs(initial_values),
         )
         try:
@@ -393,12 +391,12 @@ class _DakotaDriver(DakotaBase):
         self,
         context: EnOptContext,
         optimizer_callback: OptimizerCallback,
-        normalized_constraints: NormalizedConstraints | None,
+        row_order: NDArray[np.intp] | None,
         inputs: dict[str, list[str]],
     ) -> None:
         self._context = context
         self._optimizer_callback = optimizer_callback
-        self._normalized_constraints = normalized_constraints
+        self._row_order = row_order
         self.exception: Exception | None = None
         super().__init__(DakotaInput(**inputs))
 
@@ -462,43 +460,15 @@ class _DakotaDriver(DakotaBase):
             functions = callback_result.functions
             gradients = callback_result.gradients
 
-        if (
-            self._normalized_constraints is not None
-            and callback_result.nonlinear_constraint_bounds is not None
-        ):
-            assert self._context.nonlinear_constraints is not None
-            self._normalized_constraints.set_bounds(
-                *callback_result.nonlinear_constraint_bounds
-            )
-
-            self._normalized_constraints.reset()
-            neq = [
-                idx
-                for idx, eq in enumerate(self._normalized_constraints.is_eq)
-                if not eq
-            ]
-            eq = [
-                idx for idx, eq in enumerate(self._normalized_constraints.is_eq) if eq
-            ]
+        if self._row_order is not None:
+            # Dakota treats a constraint as satisfied when it is non-positive.
             if return_functions:
                 assert functions is not None
-                self._normalized_constraints.set_constraints(functions[1:].transpose())
-                assert self._normalized_constraints.constraints is not None
-                functions = np.hstack(
-                    (
-                        functions[0],
-                        self._normalized_constraints.constraints[neq + eq, 0],
-                    )
-                )
+                functions = np.hstack((functions[0], -functions[1:][self._row_order]))
             if compute_gradients:
                 assert gradients is not None
-                self._normalized_constraints.set_gradients(gradients[1:, :])
-                assert self._normalized_constraints.gradients is not None
                 gradients = np.vstack(
-                    (
-                        gradients[:1, :],
-                        self._normalized_constraints.gradients[neq + eq, :],
-                    )
+                    (gradients[:1, :], -gradients[1:, :][self._row_order, :])
                 )
 
         return functions, gradients
