@@ -16,6 +16,7 @@ from ropt.backend.utils import (
     NormalizedConstraints,
     create_output_path,
     get_masked_linear_constraints,
+    resolve_verbosity,
 )
 from ropt.config import BackendConfig
 from ropt.config.options import OptionsSchemaModel
@@ -40,6 +41,8 @@ _SUPPORTED_METHODS: Final = {
     "asynch_pattern_search",
 }
 _DEFAULT_METHOD: Final = "optpp_q_newton"
+# Dakota's reporting levels, from silent upwards:
+_OUTPUT_LEVELS: Final = ("silent", "quiet", "normal", "verbose", "debug")
 
 
 class DakotaBackend(Backend):
@@ -139,6 +142,22 @@ class DakotaBackend(Backend):
         """
         return False
 
+    @property
+    def bypasses_python_output(self) -> bool:
+        """Whether the optimizer prints without going through Python.
+
+        Dakota redirects its own output to a report file, but the Fortran
+        solvers it embeds write to the process's standard output instead. This
+        is declared for the whole backend: only `conmin` has been measured, and
+        Dakota cannot run concurrently in-process anyway, so the wider setting
+        costs nothing.
+
+        See the [ropt.backend.Backend][] abstract base class.
+
+        # noqa
+        """
+        return True
+
     def validate_options(self) -> None:
         """Validate the options of a given method.
 
@@ -208,7 +227,19 @@ class DakotaBackend(Backend):
             )
         if self._context.gradient.evaluation_policy == "speculative":
             inputs.append("speculative")
+        inputs.extend(self._get_output_inputs())
         return inputs
+
+    def _get_output_inputs(self) -> list[str]:
+        # Dakota reports at its `normal` level unless told otherwise, so a
+        # keyword is only added to turn that down or to set the level.
+        options = self._config.options if isinstance(self._config.options, list) else []
+        if any(option.strip().startswith("output") for option in options):
+            return []
+        level = resolve_verbosity(verbose=self._config.verbose)
+        if level is None:
+            return []
+        return [f"output {_OUTPUT_LEVELS[min(level, len(_OUTPUT_LEVELS) - 1)]}"]
 
     def _get_variables_section(self, initial_values: NDArray[np.float64]) -> list[str]:
         inputs: list[str] = []
