@@ -11,16 +11,13 @@ from typing import Any, ClassVar, Final, Literal
 import numpy as np
 from dakota import DakotaBase, DakotaInput
 from numpy.typing import NDArray
-from ropt.backend import Backend
+from ropt.backend import Backend, OptimizationProblem
 from ropt.backend.utils import (
     create_output_path,
-    get_linear_constraints,
-    get_nonlinear_equalities,
     resolve_verbosity,
 )
 from ropt.config import BackendConfig
 from ropt.config.options import OptionsSchemaModel
-from ropt.context import EnOptContext
 from ropt.core import OptimizerCallback
 from ropt.exceptions import UnsupportedError
 from ropt.plugins import MethodSpec
@@ -92,22 +89,28 @@ class DakotaBackend(Backend):
             raise UnsupportedError(msg)
         self._config = backend_config
 
-    def init(
-        self, context: EnOptContext, optimizer_callback: OptimizerCallback
+    def start(
+        self,
+        problem: OptimizationProblem,
+        optimizer_callback: OptimizerCallback,
+        *,
+        evaluation_policy: Literal["speculative", "separate", "auto"],
+        output_dir: Path | None,
     ) -> None:
-        """Initialize the optimizer implemented by the Dakota plugin.
+        """Start the optimization.
 
         See the [ropt.backend.Backend][] abstract base class.
 
         # noqa
         """
-        self._context = context
+        self._problem = problem
         self._optimizer_callback = optimizer_callback
+        self._evaluation_policy = evaluation_policy
         self._output_dir: Path
 
         # Dakota wants the inequalities before the equalities, so the rows are
         # reordered on the way out; the order is fixed for the run.
-        is_eq = get_nonlinear_equalities(self._context)
+        is_eq = problem.nonlinear_equalities
         self._is_eq = is_eq
         self._row_order = (
             None
@@ -116,30 +119,13 @@ class DakotaBackend(Backend):
         )
         _logger.debug("Using Dakota optimizer: %s", self._method)
 
-    def start(self, initial_values: NDArray[np.float64]) -> None:
-        """Start the optimization.
-
-        See the [ropt.backend.Backend][] abstract base class.
-
-        # noqa
-        """
-        if self._context.optimizer.output_dir is None:
-            with TemporaryDirectory() as output_dir:
-                self._output_dir = Path(output_dir)
-                self._start(initial_values)
+        if output_dir is None:
+            with TemporaryDirectory() as temporary_dir:
+                self._output_dir = Path(temporary_dir)
+                self._start()
         else:
-            self._output_dir = self._context.optimizer.output_dir
-            self._start(initial_values)
-
-    @property
-    def is_parallel(self) -> bool:
-        """Whether the current run is parallel.
-
-        See the [ropt.backend.Backend][] abstract base class.
-
-        # noqa
-        """
-        return False
+            self._output_dir = output_dir
+            self._start()
 
     @property
     def bypasses_python_output(self) -> bool:
@@ -180,7 +166,7 @@ class DakotaBackend(Backend):
                 self._method
             ).model_validate(options_dict)
 
-    def _get_inputs(self, initial_values: NDArray[np.float64]) -> dict[str, list[str]]:
+    def _get_inputs(self) -> dict[str, list[str]]:
         return {
             "environment": [
                 "tabular_graphics_data",
@@ -189,8 +175,7 @@ class DakotaBackend(Backend):
             "method": self._get_method_section(),
             "model": ["single"],
             "variables": (
-                self._get_variables_section(initial_values)
-                + self._get_linear_constraints_section(initial_values)
+                self._get_variables_section() + self._get_linear_constraints_section()
             ),
             "responses": self._get_responses_section(),
         }
@@ -224,7 +209,7 @@ class DakotaBackend(Backend):
                     )
                 )
             )
-        if self._context.gradient.evaluation_policy == "speculative":
+        if self._evaluation_policy == "speculative":
             inputs.append("speculative")
         inputs.extend(self._get_output_inputs())
         return inputs
@@ -240,15 +225,11 @@ class DakotaBackend(Backend):
             return []
         return [f"output {_OUTPUT_LEVELS[min(level, len(_OUTPUT_LEVELS) - 1)]}"]
 
-    def _get_variables_section(self, initial_values: NDArray[np.float64]) -> list[str]:
+    def _get_variables_section(self) -> list[str]:
         inputs: list[str] = []
-        lower_bounds = self._context.variables.lower_bounds[
-            self._context.variables.mask
-        ]
-        upper_bounds = self._context.variables.upper_bounds[
-            self._context.variables.mask
-        ]
-        initial_values = initial_values[self._context.variables.mask]
+        lower_bounds = self._problem.lower_bounds
+        upper_bounds = self._problem.upper_bounds
+        initial_values = self._problem.initial_values
         inputs.extend(
             (
                 f"continuous_design = {initial_values.size}",
@@ -271,15 +252,12 @@ class DakotaBackend(Backend):
         )
         return inputs
 
-    def _get_linear_constraints_section(
-        self, initial_values: NDArray[np.float64]
-    ) -> list[str]:
+    def _get_linear_constraints_section(self) -> list[str]:
         inputs: list[str] = []
 
-        if self._context.linear_constraints is not None:
-            all_coefficients, all_lower_bounds, all_upper_bounds, eq_idx = (
-                get_linear_constraints(self._context, initial_values)
-            )
+        linear = self._problem.linear_constraints
+        if linear is not None:
+            all_coefficients, all_lower_bounds, all_upper_bounds, eq_idx = linear
 
             ineq_idx = np.logical_not(eq_idx)
 
@@ -355,23 +333,23 @@ class DakotaBackend(Backend):
                 inputs.append(f"nonlinear_equality_constraints = {eq}")
         return inputs
 
-    def _start(self, initial_values: NDArray[np.float64]) -> None:
+    def _start(self) -> None:
         pwd = Path.cwd()
         output_dir = create_output_path("dakota", self._output_dir)
         output_dir.mkdir()
         chdir(output_dir)
         try:
-            self._start_direct_interface(initial_values)
+            self._start_direct_interface()
         finally:
             if pwd.exists():
                 chdir(pwd)
 
-    def _start_direct_interface(self, initial_values: NDArray[np.float64]) -> None:
+    def _start_direct_interface(self) -> None:
         driver = _DakotaDriver(
-            self._context,
+            self._evaluation_policy,
             self._optimizer_callback,
             self._row_order,
-            self._get_inputs(initial_values),
+            self._get_inputs(),
         )
         try:
             driver.run_dakota(
@@ -389,12 +367,12 @@ class DakotaBackend(Backend):
 class _DakotaDriver(DakotaBase):
     def __init__(
         self,
-        context: EnOptContext,
+        evaluation_policy: Literal["speculative", "separate", "auto"],
         optimizer_callback: OptimizerCallback,
         row_order: NDArray[np.intp] | None,
         inputs: dict[str, list[str]],
     ) -> None:
-        self._context = context
+        self._evaluation_policy = evaluation_policy
         self._optimizer_callback = optimizer_callback
         self._row_order = row_order
         self.exception: Exception | None = None
@@ -441,7 +419,7 @@ class _DakotaDriver(DakotaBase):
         if (
             return_functions
             and compute_gradients
-            and self._context.gradient.evaluation_policy == "separate"
+            and self._evaluation_policy == "separate"
         ):
             callback_result = self._optimizer_callback(
                 variables, return_functions=True, return_gradients=False

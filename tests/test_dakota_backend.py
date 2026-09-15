@@ -312,6 +312,7 @@ def test_dakota_optimizer_variables_subset(config: Any, eval_func: Any) -> None:
         for item in event.results or ():
             if isinstance(item, GradientResults):
                 assert item.gradients is not None
+                assert item.target_gradient is not None
                 assert item.target_gradient[1] == 0.0
                 assert np.all(np.equal(item.gradients.objectives[:, 1], 0.0))
 
