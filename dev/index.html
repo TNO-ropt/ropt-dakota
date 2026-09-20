@@ -420,7 +420,7 @@
 <h1 id="a-dakota-plugin-for-ropt">A Dakota plugin for <code>ropt</code></h1>
 <p>The <code>ropt-dakota</code> package extends the <a href="https://tno-ropt.github.io/ropt/dev/"><code>ropt</code></a>
 module by providing a plugin that integrates optimization algorithms from the
-<a href="https://dakota.sandia.gov/">Dakota</a> toolkit.  <code>ropt</code> itself is a robust
+<a href="https://dakota.sandia.gov/">Dakota</a> toolkit. <code>ropt</code> itself is a robust
 optimization framework designed for both continuous and discrete optimization
 workflows and is extensible through its plugin architecture. Installing
 <code>ropt-dakota</code> makes these Dakota algorithms directly available within <code>ropt</code>.</p>
@@ -458,12 +458,12 @@ prefix the method with <code>external/</code> and it runs in a process of its ow
 through the <a class="autorefs autorefs-external" href="https://tno-ropt.github.io/ropt/latest/reference/backend/#ropt.backend.external.ExternalBackend"><code>external</code></a> backend.</p>
 </div>
 <p>To select an optimizer, set the <code>method</code> field within the
-<a class="autorefs autorefs-external" href="https://tno-ropt.github.io/ropt/latest/reference/config/#ropt.config.BackendConfig"><code>optimizer</code></a> section of the
+<a class="autorefs autorefs-external" href="https://tno-ropt.github.io/ropt/latest/reference/config/#ropt.config.BackendConfig"><code>backend</code></a> section of the
 <a class="autorefs autorefs-external" href="https://tno-ropt.github.io/ropt/latest/reference/context/#ropt.context.EnOptContext"><code>EnOptContext</code></a> configuration object to the
 desired algorithm's name. Most methods support the general options defined
 in the <a class="autorefs autorefs-external" href="https://tno-ropt.github.io/ropt/latest/reference/context/#ropt.context.EnOptContext"><code>EnOptContext</code></a> object. For
 algorithm-specific options, use the <code>options</code> dictionary within the
-<a class="autorefs autorefs-external" href="https://tno-ropt.github.io/ropt/latest/reference/config/#ropt.config.BackendConfig"><code>optimizer</code></a> section.</p>
+<a class="autorefs autorefs-external" href="https://tno-ropt.github.io/ropt/latest/reference/config/#ropt.config.BackendConfig"><code>backend</code></a> section.</p>
 <p>Below are the supported options. Click on the common options, or on the
 method name to consult the corresponding
 <a href="https://snl-dakota.github.io/"><code>Dakota</code></a> documentation:</p>
