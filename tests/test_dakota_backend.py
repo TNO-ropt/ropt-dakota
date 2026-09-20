@@ -214,30 +214,21 @@ def test_dakota_ineq_nonlinear_constraints_two_sided(
     eval_func: Any,
     test_functions: Any,
 ) -> None:
-    config["variables"]["lower_bounds"] = [-1.0, -1.0, -1.0]
-    config["variables"]["upper_bounds"] = [1.0, 1.0, 1.0]
     config["nonlinear_constraints"] = {
-        "lower_bounds": [0.01, 0.0],
-        "upper_bounds": [0.01, 0.3],
+        "lower_bounds": [0.0],
+        "upper_bounds": [0.3],
     }
 
-    def constraint_function_1(
-        variables: NDArray[np.float64], _: EvaluationFunctionContext
-    ) -> float:
-        return float(variables[1])
-
-    def constraint_function_2(
+    def constraint_function(
         variables: NDArray[np.float64], _: EvaluationFunctionContext
     ) -> float:
         return float(variables[0] + variables[2])
 
     result = optimize(
-        config,
-        initial_values,
-        eval_func(test_functions, [constraint_function_1, constraint_function_2]),
+        config, initial_values, eval_func(test_functions, [constraint_function])
     )
     assert result.results is not None
-    assert np.allclose(result.results.variables, [-0.1, 0.01, 0.4], atol=0.02)
+    assert np.allclose(result.results.variables, [-0.1, 0.0, 0.4], atol=0.02)
 
 
 def test_dakota_ineq_nonlinear_constraints_eq_ineq(
