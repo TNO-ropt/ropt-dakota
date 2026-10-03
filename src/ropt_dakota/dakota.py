@@ -6,7 +6,7 @@ from math import isfinite
 from os import chdir
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Any, ClassVar, Final, Literal
+from typing import Any, ClassVar, Final, Literal, override
 
 import numpy as np
 from dakota import DakotaBase, DakotaInput
@@ -89,6 +89,7 @@ class DakotaBackend(Backend):
             raise UnsupportedError(msg)
         self._config = backend_config
 
+    @override
     def start(
         self,
         problem: OptimizationProblem,
@@ -128,6 +129,7 @@ class DakotaBackend(Backend):
             self._start()
 
     @property
+    @override
     def bypasses_python_output(self) -> bool:
         """Whether the optimizer prints without going through Python.
 
@@ -143,6 +145,7 @@ class DakotaBackend(Backend):
         """
         return True
 
+    @override
     def validate_options(self) -> None:
         """Validate the options of a given method.
 
