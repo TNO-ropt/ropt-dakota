@@ -5,10 +5,7 @@ from typing import Any
 import numpy as np
 import pytest
 from numpy.typing import NDArray
-from ropt.components.evaluators import (
-    EvaluationFunctionContext,
-    EvaluationFunctionResult,
-)
+from ropt import EvaluationFunctionContext, EvaluationFunctionResult
 
 try:
     import cloudpickle  # ruff: ignore[unused-import]
