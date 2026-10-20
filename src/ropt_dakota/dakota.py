@@ -12,14 +12,13 @@ import numpy as np
 from dakota import DakotaBase, DakotaInput
 from numpy.typing import NDArray
 from ropt import UnsupportedError
-from ropt.backend import Backend, OptimizationProblem
+from ropt.backend import Backend, OptimizationProblem, OptimizerCallback
 from ropt.backend.utils import (
     create_output_path,
     resolve_verbosity,
 )
 from ropt.config import BackendConfig
 from ropt.config.options import OptionsSchemaModel
-from ropt.core import OptimizerCallback
 from ropt.plugins import MethodSpec
 
 _logger = logging.getLogger("ropt.backend.dakota")
