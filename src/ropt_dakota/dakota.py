@@ -377,7 +377,7 @@ class _DakotaDriver(DakotaBase):
         self._evaluation_policy = evaluation_policy
         self._optimizer_callback = optimizer_callback
         self._row_order = row_order
-        self.exception: Exception | None = None
+        self.exception: BaseException | None = None
         super().__init__(DakotaInput(**inputs))
 
     def dakota_callback(
@@ -399,7 +399,7 @@ class _DakotaDriver(DakotaBase):
                 return_functions=return_functions,
                 compute_gradients=compute_gradients,
             )
-        except Exception as err:
+        except BaseException as err:
             self.exception = err
             raise
 
