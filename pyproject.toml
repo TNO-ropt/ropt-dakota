@@ -45,6 +45,7 @@ filterwarnings = [
     "error",
     'ignore:numpy.ndarray size changed, may indicate binary incompatibility.*:RuntimeWarning',
 ]
+addopts = ["--disable-plugin-autoload"]
 
 [tool.ruff.format]
 exclude = ["src/ropt_dakota/version.py", "build"]
