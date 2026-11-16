@@ -77,11 +77,10 @@ ignore_missing_imports = true
 
 [dependency-groups]
 dev = [
-    "mike",
-    "mkdocs",
-    "mkdocs-material",
+    "mike @ git+https://github.com/squidfunk/mike.git@2d4ad799442f4592db8ad53b179bfb33db8c69ac",
     "mkdocstrings[python]",
     "mypy",
     "pytest",
     "ruff",
+    "zensical>=0.1.1",
 ]

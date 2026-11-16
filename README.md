@@ -36,3 +36,12 @@ compatible tools of your choice.
 The `ropt-dakota` package uses [ruff](https://docs.astral.sh/ruff/) (for
 formatting and linting), [mypy](https://www.mypy-lang.org/) (for static typing),
 and [pytest](https://docs.pytest.org/en/stable/) (for running the test suite).
+
+The documentation is built with [Zensical](https://zensical.org/) and
+[mkdocstrings](https://mkdocstrings.github.io/). Preview it locally with
+`uv run zensical serve`, or validate it with
+`uv run zensical build --clean --strict`.
+
+Versioned documentation is published with the
+[Zensical-compatible mike fork](https://zensical.org/docs/compatibility/mkdocs/mike/),
+pinned to a Git revision in the development dependencies.
