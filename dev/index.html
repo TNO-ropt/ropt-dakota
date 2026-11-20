@@ -295,6 +295,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Usage
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#reference" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
@@ -365,6 +376,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Usage
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#reference" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
@@ -413,6 +435,10 @@ module by providing a plugin that integrates optimization algorithms from the
 optimization framework designed for both continuous and discrete optimization
 workflows and is extensible through its plugin architecture. Installing
 <code>ropt-dakota</code> makes these Dakota algorithms directly available within <code>ropt</code>.</p>
+<h2 id="usage">Usage</h2>
+<p>For <code>asynch_pattern_search</code>, leave <code>backend.max_iterations</code> unset or <code>None</code>;
+any other value raises a validation error. To limit function evaluations
+instead, add <code>"max_function_evaluations = 100"</code> to the <code>backend.options</code> list.</p>
 <h2 id="reference">Reference</h2>
 
 
