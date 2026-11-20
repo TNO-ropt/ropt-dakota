@@ -7,6 +7,12 @@ optimization framework designed for both continuous and discrete optimization
 workflows and is extensible through its plugin architecture. Installing
 `ropt-dakota` makes these Dakota algorithms directly available within `ropt`.
 
+## Usage
+
+For `asynch_pattern_search`, leave `backend.max_iterations` unset or `None`;
+any other value raises a validation error. To limit function evaluations
+instead, add `"max_function_evaluations = 100"` to the `backend.options` list.
+
 ## Reference
 
 ::: ropt_dakota.dakota.DakotaBackend

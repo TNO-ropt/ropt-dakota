@@ -14,6 +14,7 @@ from ropt import (
     GradientResults,
     optimize,
 )
+from ropt.context import EnOptContext
 from ropt.utils import validate_backend_options
 
 from ropt_dakota.dakota import _SUPPORTED_METHODS
@@ -36,6 +37,22 @@ def config_fixture() -> dict[str, Any]:
             "weights": [0.75, 0.25],
         },
     }
+
+
+@pytest.mark.parametrize(
+    "external", ["", pytest.param("external/", marks=pytest.mark.external)]
+)
+def test_dakota_asynch_pattern_search_rejects_max_iterations(external: str) -> None:
+    with pytest.raises(ValidationError, match="does not support 'max_iterations'"):
+        EnOptContext.model_validate(
+            {
+                "variables": {"variable_count": 1},
+                "backend": {
+                    "method": f"{external}dakota/asynch_pattern_search",
+                    "max_iterations": 1,
+                },
+            }
+        )
 
 
 def test_dakota_invalid_options(config: Any) -> None:
