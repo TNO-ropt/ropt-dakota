@@ -298,12 +298,12 @@ def test_dakota_failed_realizations(config: Any, eval_func: Any) -> None:
 
 
 def test_dakota_evaluation_policy_separate(config: Any, eval_func: Any) -> None:
-    config["gradient"] = {"evaluation_policy": "separate"}
+    config["optimizer"] = {"evaluation_policy": "separate"}
     result = optimize(config, initial_values, eval_func())
     assert result.results is not None
     assert np.allclose(result.results.variables, [0.0, 0.0, 0.5], atol=0.02)
 
-    config["gradient"] = {"evaluation_policy": "separate"}
+    config["optimizer"] = {"evaluation_policy": "separate"}
     result = optimize(config, initial_values, eval_func())
     assert result.results is not None
     assert np.allclose(result.results.variables, [0.0, 0.0, 0.5], atol=0.02)
@@ -319,10 +319,10 @@ def test_dakota_optimizer_variables_subset(config: Any, eval_func: Any) -> None:
 
     def assert_gradient(item: FunctionResults | GradientResults) -> None:
         if isinstance(item, GradientResults):
-            assert item.gradients is not None
-            assert item.target_gradient is not None
-            assert item.target_gradient[1] == 0.0
-            assert np.all(np.equal(item.gradients.objectives[:, 1], 0.0))
+            assert item.aggregates is not None
+            assert item.target_objective is not None
+            assert item.target_objective[1] == 0.0
+            assert np.all(np.equal(item.aggregates.objectives[:, 1], 0.0))
 
     result = optimize(
         config,
